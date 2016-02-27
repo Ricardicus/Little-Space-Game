@@ -1,2 +1,2 @@
 # Little-Space-Game
-A little game in Xlib :)
+A little game in Xlib :) 
