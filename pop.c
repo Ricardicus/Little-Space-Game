@@ -22,69 +22,8 @@
 #define right   4
 #define still   5
 
-/* Function type declarations */
-typedef void (*draw_callback)(void*);
-typedef void (*timer_func)(void);
-
-/* Struct declarations */
-struct dot_bulb {
-    int x;
-    int y;
-    int side;
-    int state;
-    int direction;
-    int state_count;
-    int nbr_of_states;
-    draw_callback draw_f;
-};
-
-struct shot_bulb {
-    int x;
-    int y;
-    draw_callback draw_f;
-};
-
-struct monster_bulb {
-    int x;
-    int y;
-    int side;
-    int move;
-    int state;
-    int nbr_of_states;
-    draw_callback draw_f;
-};
-
-struct star_bulb {
-    int x;
-    int y;
-    draw_callback draw_f;
-};
-
-/* Type declarations */
-typedef enum draw_type_e{
-    monster,
-    dot,
-    shot,
-    star
-} draw_object_type_t;
-
-typedef struct drawable_u {
-    draw_object_type_t type;
-    struct dot_bulb dot;
-    struct monster_bulb monster;
-    struct shot_bulb shot;
-    struct star_bulb star;
-} drawable_t;
-
-typedef struct world_u {
-    int size;
-    int max_nbr_of_objects;
-    drawable_t ** drawables;
-} world_t;
-
 /* Function declarations */
 void draw_dot_bulb(void*);
-void erase_dot_bulb(void*);
 void draw_fire_shot(void*);
 void draw_star(void*);
 void create_fire_shot(int,int);
@@ -523,25 +462,6 @@ void draw_star(void * dt){
     XDrawLine(display,window, gc, sb->x+4, sb->y, sb->x+1, sb->y-1);
     XDrawLine(display,window, gc, sb->x+1, sb->y-1, sb->x, sb->y-4);
     sb->x=sb->x-2;
-    XFlush(display);
-}
-
-void erase_dot_bulb(void * dt){
-    struct dot_bulb* db = (struct dot_bulb*) dt;
-    int current_state = db->state;
-    switch(current_state){
-        case 0:
-            XSetForeground(display, gc, WhitePixel(display,screen_num));
-            XFillRectangle(display, window, DefaultGC(display, s), db->x, db->y, db->side, db->side);
-            XFillRectangle(display, window, DefaultGC(display, s), db->x+1, db->y, db->side, db->side);
-            XFillRectangle(display, window, DefaultGC(display, s), db->x, db->y-1, db->side, db->side);
-            XFillRectangle(display, window, DefaultGC(display, s), db->x, db->y+1, db->side, db->side);
-            break;
-        case 1:
-            break;
-        default:
-            break;
-    }
     XFlush(display);
 }
 
