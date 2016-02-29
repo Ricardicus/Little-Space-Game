@@ -110,6 +110,7 @@ void erase_drawable(int id);
 void create_enemy(void);
 world_t* init_world(int);
 void initialise_world_1(void);
+void destroy_world(void);
 static void* event_loop(void*);
 static void* timer_loop(void*);
 void close_x(void);
