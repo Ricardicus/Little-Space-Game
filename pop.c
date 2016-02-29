@@ -41,6 +41,7 @@ struct dot_bulb {
 struct shot_bulb {
     int x;
     int y;
+    int direction;
     draw_callback draw_f;
 };
 
@@ -62,12 +63,24 @@ struct star_bulb {
     draw_callback draw_f;
 };
 
+struct enemy_aircraft {
+    int x;
+    int y;
+    int side;
+    int state;
+    int substate;
+    int fire_count;
+    int direction;
+    draw_callback draw_f;
+};
+
 /* Type declarations */
 typedef enum draw_type_e{
     monster,
     dot,
     shot,
-    star
+    star,
+    enemy
 } draw_object_type_t;
 
 typedef struct drawable_u {
@@ -76,6 +89,7 @@ typedef struct drawable_u {
     struct monster_bulb monster;
     struct shot_bulb shot;
     struct star_bulb star;
+    struct enemy_aircraft enemy;
 } drawable_t;
 
 typedef struct world_u {
@@ -89,8 +103,9 @@ void draw_dot_bulb(void*);
 void erase_dot_bulb(void*);
 void draw_fire_shot(void*);
 void draw_star(void*);
-void create_fire_shot(int,int);
+void create_fire_shot(int,int,int);
 void erase_drawable(int id);
+void create_enemy(void);
 static void* event_loop(void*);
 static void* timer_loop(void*);
 void close_x(void);
@@ -101,7 +116,7 @@ void move_world(void);
 *   Window variables
 */
 
-static XColor red,green,white;
+static XColor red,blue,white;
 Display *display;
 Window window;
 XEvent event;
@@ -147,13 +162,14 @@ void create_star(void){
     world->size++;
 }
 
-void create_fire_shot(int x, int y){
+void create_fire_shot(int x, int y, int direction){
     int i = world->size;
     if(i >= world->max_nbr_of_objects){
         return;
     }
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
     /* one dot to start with */ 
+    drawable->shot.direction = direction;
     drawable->shot.x = x;
     drawable->shot.y = y;
     drawable->shot.draw_f = draw_fire_shot;
@@ -184,6 +200,10 @@ void draw_world(){
                 break;
             case star:
                 world->drawables[i]->star.draw_f(&world->drawables[i]->star);
+                XFlush(display);
+                break;
+            case enemy:
+                world->drawables[i]->enemy.draw_f(&world->drawables[i]->enemy);
                 XFlush(display);
                 break;
             default:
@@ -239,16 +259,14 @@ static void* event_loop(void*data)
                 height = xce.height;
             }
         }
-        /* exit on key press */
-        else if (event.type == ButtonPress){
 
-            XDrawString(display, window, DefaultGC(display, s), event.xbutton.x,event.xbutton.y, "Click", 5);
-            XSetForeground(display, gc, WhitePixel(display,screen_num));
-            XFillRectangle(display, window, gc, x, 20, 1, 1);
-            x++;
-            XSetForeground(display, gc, BlackPixel(display,screen_num));
-            XFillRectangle(display, window, DefaultGC(display, s), x, 20, 1, 1);
-        }
+        /* exit on key press */
+//        else if (event.type == ButtonPress){
+
+//            XDrawString(display, window, DefaultGC(display, s), event.xbutton.x,event.xbutton.y, "Click", 5);
+//        }
+
+
         else if (event.type == KeyPress && XLookupString(&event.xkey,text,255,&key,0)==1) {
         /* the XLookupString routine converts the invent
            KeyPress data into regular text.  Weird but necessary.
@@ -289,11 +307,10 @@ static void* event_loop(void*data)
                 case 'f':
                     world->drawables[0]->dot.state=1;
                     world->drawables[0]->dot.state_count=1;
-                    create_fire_shot(world->drawables[0]->dot.x,world->drawables[0]->dot.y);
+                    create_fire_shot(world->drawables[0]->dot.x,world->drawables[0]->dot.y,2);
                     break;
-                case 'u':
-                    create_star();
-                    break;
+                case 'e':
+                    create_enemy();
             }
 
         } 
@@ -322,7 +339,7 @@ void initialise_world_1(void){
         return;
     }
 
-    world = init_world(100);
+    world = init_world(1000);
 
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
     /* one dot to start with */ 
@@ -357,8 +374,8 @@ int main(int argc, char **argv)
     s = DefaultScreen(display);
  
     /* create window */
-    width = 200;
-    height = 200;
+    width = 500;
+    height = 500;
 
     window = XCreateSimpleWindow(display, RootWindow(display, s), 10, 10, height, width, 1,
                            BlackPixel(display, s), WhitePixel(display, s));
@@ -385,6 +402,11 @@ int main(int argc, char **argv)
     exit(1);
     }
 
+    rc = XAllocNamedColor(display, screen_colormap, "blue", &blue, &blue);
+    if (rc == 0) {
+    fprintf(stderr, "XAllocNamedColor - failed to allocated 'red' color.\n");
+    exit(1);
+    }
 
 /* initialising the world! */
     initialise_world_1();
@@ -428,15 +450,53 @@ int main(int argc, char **argv)
 
 void draw_aircraft(int x, int y){
     XSetForeground(display, gc, BlackPixel(display,screen_num));
-    XFillRectangle(display, window, DefaultGC(display, s), x, y, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x, y, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x+1, y, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x, y-1, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x, y+1, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x-1, y+1, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x-1, y+2, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x-1, y-1, 1,1);
-    XFillRectangle(display, window, DefaultGC(display, s), x-1, y-2, 1,1);
+    XDrawLine(display,window, gc, x, y, x-5, y+5);
+    XDrawLine(display,window, gc, x, y, x-5, y-5);
+    XDrawLine(display,window, gc, x, y, x-5,y);
+    XDrawLine(display,window, gc, x-5, y, x-10, y+10);
+    XDrawLine(display,window, gc, x-5, y, x-10, y-10);
+}
+
+void draw_enemy_aircraft(int x, int y){
+    XSetForeground(display, gc, blue.pixel);
+    XDrawLine(display,window, gc, x, y, x+5, y-5);
+    XDrawLine(display,window, gc, x, y, x+5, y+5);
+    XDrawLine(display,window, gc, x, y, x+5,y);
+    XDrawLine(display,window, gc, x+5, y, x+10, y-10);
+    XDrawLine(display,window, gc, x+5, y, x+10, y+10);
+    XFlush(display); 
+}
+
+void draw_enemy(void * dt){
+    
+    struct enemy_aircraft* db = (struct enemy_aircraft*) dt;
+    XSetForeground(display, gc, BlackPixel(display,screen_num));
+    
+    switch(db->state){  
+        case 0:
+            XDrawArc(display, window, gc, db->x, db->y, 20, 20, db->substate*20*64,db->substate*20*64+20);
+            XDrawArc(display, window, gc, db->x, db->y, 10, 10, db->substate*30*64,db->substate*30*64+20);
+            break;
+        case 1:
+            draw_enemy_aircraft(db->x, db->y);
+            break;
+        case 2:
+            draw_enemy_aircraft(db->x, db->y);
+            XSetForeground(display, gc, red.pixel);
+            if(db->fire_count == 1){
+                XFillRectangle(display, window, DefaultGC(display, s), db->x-2, db->y, 1,1);
+                XFillRectangle(display, window, DefaultGC(display, s), db->x-3, db->y, 1,1);
+                XFillRectangle(display, window, DefaultGC(display, s), db->x-2, db->y+1, 1,1);
+                XFillRectangle(display, window, DefaultGC(display, s), db->x-2, db->y-1, 1,1);
+                db->fire_count = 0;
+            } else if(db->fire_count == 0){
+                db->state=1;
+            }
+            XFillRectangle(display, window, DefaultGC(display, s), db->x+2, db->y, 1,1);
+            break;
+        default:
+            break;
+    }
 }
 
 void draw_dot_bulb(void * dt){
@@ -465,6 +525,23 @@ void draw_dot_bulb(void * dt){
     }
 }
 
+void create_enemy(void){
+
+    drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
+    /* one dot to start with */ 
+    drawable->enemy.direction = still;
+    drawable->enemy.x = width-30 + rand()%15;
+    drawable->enemy.y = rand()%height;
+    drawable->enemy.state = 0;
+    drawable->enemy.substate = 0;
+    drawable->enemy.fire_count = 0;
+    drawable->enemy.draw_f = draw_enemy;
+    drawable->type = enemy;
+
+    world->drawables[world->size] = drawable;
+    world->size++;
+}
+
 void erase_drawable(int id){
     if(id>=world->max_nbr_of_objects){
         return;
@@ -488,6 +565,7 @@ void draw_fire_shot(void * dt){
     struct shot_bulb* sb = (struct shot_bulb*) dt;
     XSetForeground(display, gc, red.pixel);
     XFillRectangle(display, window, DefaultGC(display, s), sb->x, sb->y, 1,1);
+    XSetForeground(display, DefaultGC(display, s), BlackPixel(display,screen_num));
 }
 
 void draw_star(void * dt){
@@ -504,6 +582,8 @@ void draw_star(void * dt){
 }
 
 void move_world(void){
+
+    static int enemy_move_count = 0;
 
     for(int i = 0;i<world->size;i++){
     switch(world->drawables[i]->type){
@@ -535,7 +615,7 @@ void move_world(void){
                 erase_drawable(i);
                 break;
             } 
-            world->drawables[i]->shot.x += 2;
+            world->drawables[i]->shot.x += world->drawables[i]->shot.direction;
             break;
         case star:
             if(world->drawables[i]->star.x <= 0){
@@ -544,8 +624,44 @@ void move_world(void){
             }
             world->drawables[i]->star.x -= world->drawables[i]->star.speed;
             break;
-        default:
-            break;
+        case enemy:
+            switch(world->drawables[i]->enemy.state){
+                case 0:
+                    if(world->drawables[i]->enemy.substate == 10){
+                        world->drawables[i]->enemy.state = 1;
+                    } else {
+                        world->drawables[i]->enemy.substate += 1;
+                    }
+                    break;
+                case 1:
+                    if(enemy_move_count == 100){
+                        enemy_move_count = 0;
+                    } else {
+                        if(!(enemy_move_count % 10))
+                            world->drawables[i]->enemy.direction = rand()%3;
+                        int shoot = rand()%14;
+                        if(!shoot){
+                            world->drawables[i]->enemy.state=2;
+                            world->drawables[i]->enemy.fire_count=1;
+                            create_fire_shot(world->drawables[i]->enemy.x,world->drawables[i]->enemy.y,-2);
+                        }
+                        enemy_move_count++;
+                    }
+                    switch(world->drawables[i]->enemy.direction){
+                        case 0:
+                            break;
+                        case 1:
+                            world->drawables[i]->enemy.y = (height+world->drawables[i]->enemy.y - 1)%height;
+                            break;
+                        case 2:
+                            world->drawables[i]->enemy.y = (world->drawables[i]->enemy.y + 1)%height; 
+                            break;
+                        default:
+                            break;
+                    }
+                default:
+                    break;    
+            }
         }
      }
 
