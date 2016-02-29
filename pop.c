@@ -14,7 +14,6 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-// #include "pop.h"
 
 #define up      1
 #define down    2
@@ -26,7 +25,7 @@
 typedef void (*draw_callback)(void*);
 typedef void (*timer_func)(void);
 
-/* Struct declarations */
+  /* Struct declarations */
 struct dot_bulb {
     int x;
     int y;
@@ -102,15 +101,19 @@ typedef struct world_u {
 void draw_dot_bulb(void*);
 void erase_dot_bulb(void*);
 void draw_fire_shot(void*);
+void draw_enemy(void*);
 void draw_star(void*);
+void draw_aircraft(int,int);
+void draw_enemy_aircraft(int,int);
 void create_fire_shot(int,int,int);
 void erase_drawable(int id);
 void create_enemy(void);
+world_t* init_world(int);
+void initialise_world_1(void);
 static void* event_loop(void*);
 static void* timer_loop(void*);
 void close_x(void);
 void move_world(void);
-
 
 /* 
 *   Window variables
