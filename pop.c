@@ -148,12 +148,14 @@ world_t * init_world(int max){
 }
 
 void create_star(void){
+    
     int i = world->size;
     if(i >= world->max_nbr_of_objects){
         return;
     }
+
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
-    /* one dot to start with */ 
+
     drawable->star.x = width;
     drawable->star.y = rand()%height;
     drawable->star.speed = 1 + rand()%4;
