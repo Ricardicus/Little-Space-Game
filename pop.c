@@ -485,15 +485,15 @@ void draw_enemy(void * dt){
             draw_enemy_aircraft(db->x, db->y);
             XSetForeground(display, gc, red.pixel);
             if(db->fire_count == 1){
-                XFillRectangle(display, window, DefaultGC(display, s), db->x-2, db->y, 1,1);
-                XFillRectangle(display, window, DefaultGC(display, s), db->x-3, db->y, 1,1);
-                XFillRectangle(display, window, DefaultGC(display, s), db->x-2, db->y+1, 1,1);
-                XFillRectangle(display, window, DefaultGC(display, s), db->x-2, db->y-1, 1,1);
+                XFillRectangle(display, window, gc, db->x-2, db->y, 1,1);
+                XFillRectangle(display, window, gc, db->x-3, db->y, 1,1);
+                XFillRectangle(display, window, gc, db->x-2, db->y+1, 1,1);
+                XFillRectangle(display, window, gc, db->x-2, db->y-1, 1,1);
                 db->fire_count = 0;
             } else if(db->fire_count == 0){
                 db->state=1;
             }
-            XFillRectangle(display, window, DefaultGC(display, s), db->x+2, db->y, 1,1);
+            XFillRectangle(display, window, gc, db->x+2, db->y, 1,1);
             break;
         default:
             break;
@@ -511,15 +511,15 @@ void draw_dot_bulb(void * dt){
             draw_aircraft(db->x, db->y);
             XSetForeground(display, gc, red.pixel);
             if(db->state_count == 1){
-                XFillRectangle(display, window, DefaultGC(display, s), db->x+2, db->y, 1,1);
-                XFillRectangle(display, window, DefaultGC(display, s), db->x+3, db->y, 1,1);
-                XFillRectangle(display, window, DefaultGC(display, s), db->x+2, db->y+1, 1,1);
-                XFillRectangle(display, window, DefaultGC(display, s), db->x+2, db->y-1, 1,1);
+                XFillRectangle(display, window, gc, db->x+2, db->y, 1,1);
+                XFillRectangle(display, window, gc, db->x+3, db->y, 1,1);
+                XFillRectangle(display, window, gc, db->x+2, db->y+1, 1,1);
+                XFillRectangle(display, window, gc, db->x+2, db->y-1, 1,1);
                 db->state_count = 0;
             } else if(db->state_count == 0){
                 db->state=0;
             }
-            XFillRectangle(display, window, DefaultGC(display, s), db->x+2, db->y, 1,1);
+            XFillRectangle(display, window, gc, db->x+2, db->y, 1,1);
             break;
         default:
             break;
@@ -565,13 +565,13 @@ void erase_drawable(int id){
 void draw_fire_shot(void * dt){
     struct shot_bulb* sb = (struct shot_bulb*) dt;
     XSetForeground(display, gc, red.pixel);
-    XFillRectangle(display, window, DefaultGC(display, s), sb->x, sb->y, 1,1);
-    XSetForeground(display, DefaultGC(display, s), BlackPixel(display,screen_num));
+    XFillRectangle(display, window, gc, sb->x, sb->y, 1,1);
+    XSetForeground(display, gc, BlackPixel(display,screen_num));
 }
 
 void draw_star(void * dt){
     struct star_bulb* sb = (struct star_bulb*) dt;
-    XSetForeground(display, DefaultGC(display, s), BlackPixel(display,screen_num));
+    XSetForeground(display, gc, BlackPixel(display,screen_num));
     XDrawLine(display,window, gc, sb->x, sb->y-sb->side, sb->x-1, sb->y-1);
     XDrawLine(display,window, gc, sb->x-1, sb->y-1, sb->x-sb->side, sb->y);
     XDrawLine(display,window, gc, sb->x-sb->side, sb->y, sb->x-1, sb->y+1);
