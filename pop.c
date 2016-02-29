@@ -148,7 +148,7 @@ world_t * init_world(int max){
 }
 
 void create_star(void){
-    
+
     int i = world->size;
     if(i >= world->max_nbr_of_objects){
         return;
@@ -193,23 +193,18 @@ void draw_world(){
         switch(world->drawables[i]->type){
             case monster:
                 world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
-                XFlush(display);
                 break;
             case dot:
                 world->drawables[i]->dot.draw_f(&world->drawables[i]->dot);
-                XFlush(display);
                 break;
             case shot:
                 world->drawables[i]->shot.draw_f(&world->drawables[i]->shot);
-                XFlush(display);
                 break;
             case star:
                 world->drawables[i]->star.draw_f(&world->drawables[i]->star);
-                XFlush(display);
                 break;
             case enemy:
                 world->drawables[i]->enemy.draw_f(&world->drawables[i]->enemy);
-                XFlush(display);
                 break;
             default:
                 break;
