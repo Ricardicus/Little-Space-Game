@@ -57,6 +57,8 @@ struct monster_bulb {
 struct star_bulb {
     int x;
     int y;
+    int speed;
+    int side;
     draw_callback draw_f;
 };
 
@@ -92,6 +94,7 @@ void erase_drawable(int id);
 static void* event_loop(void*);
 static void* timer_loop(void*);
 void close_x(void);
+void move_world(void);
 
 
 /* 
@@ -135,6 +138,8 @@ void create_star(void){
     /* one dot to start with */ 
     drawable->star.x = width;
     drawable->star.y = rand()%height;
+    drawable->star.speed = 1 + rand()%4;
+    drawable->star.side = 3 + rand()%6;
     drawable->star.draw_f = draw_star;
     drawable->type = star;
 
@@ -167,46 +172,25 @@ void draw_world(){
         switch(world->drawables[i]->type){
             case monster:
                 world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
+                XFlush(display);
                 break;
             case dot:
-                switch(world->drawables[i]->dot.direction){
-                    case still:
-                        break;
-                    case up:
-                        world->drawables[i]->dot.y = (height+world->drawables[i]->dot.y - 1)%height;
-                        break;
-                    case down:
-                        world->drawables[i]->dot.y = (world->drawables[i]->dot.y + 1)%height; 
-                        break;
-                    case left:
-                        world->drawables[i]->dot.x = (width+world->drawables[i]->dot.x - 1)%width; 
-                        break; 
-                    case right:
-                        world->drawables[i]->dot.x = (world->drawables[i]->dot.x + 1)%width;  
-                        break;
-                    default:
-                        break;
-                }
                 world->drawables[i]->dot.draw_f(&world->drawables[i]->dot);
+                XFlush(display);
                 break;
             case shot:
-                if(world->drawables[i]->shot.x >= width){
-                    erase_drawable(i);
-                } else {
-                    world->drawables[i]->shot.draw_f(&world->drawables[i]->shot);
-                }
+                world->drawables[i]->shot.draw_f(&world->drawables[i]->shot);
+                XFlush(display);
                 break;
             case star:
-                if(world->drawables[i]->star.x <= 0){
-                    erase_drawable(i);
-                } else {
-                    world->drawables[i]->star.draw_f(&world->drawables[i]->star);
-                }
+                world->drawables[i]->star.draw_f(&world->drawables[i]->star);
+                XFlush(display);
                 break;
             default:
                 break;
-         }
-     }
+        }
+    }
+    XFlush(display);
 }
 
 static void * timer_loop(void * tf)
@@ -320,6 +304,7 @@ static void* event_loop(void*data)
 
 void world_refresh(){
     XClearWindow(display, window);
+    move_world();
     draw_world();
 }
 
@@ -452,8 +437,6 @@ void draw_aircraft(int x, int y){
     XFillRectangle(display, window, DefaultGC(display, s), x-1, y+2, 1,1);
     XFillRectangle(display, window, DefaultGC(display, s), x-1, y-1, 1,1);
     XFillRectangle(display, window, DefaultGC(display, s), x-1, y-2, 1,1);
-
-
 }
 
 void draw_dot_bulb(void * dt){
@@ -480,7 +463,6 @@ void draw_dot_bulb(void * dt){
         default:
             break;
     }
-    XFlush(display);
 }
 
 void erase_drawable(int id){
@@ -506,43 +488,67 @@ void draw_fire_shot(void * dt){
     struct shot_bulb* sb = (struct shot_bulb*) dt;
     XSetForeground(display, gc, red.pixel);
     XFillRectangle(display, window, DefaultGC(display, s), sb->x, sb->y, 1,1);
-    sb->x=sb->x+2;
-    XFlush(display);
 }
-
 
 void draw_star(void * dt){
     struct star_bulb* sb = (struct star_bulb*) dt;
     XSetForeground(display, DefaultGC(display, s), BlackPixel(display,screen_num));
-    XDrawLine(display,window, gc, sb->x, sb->y-4, sb->x-1, sb->y-1);
-    XDrawLine(display,window, gc, sb->x-1, sb->y-1, sb->x-4, sb->y);
-    XDrawLine(display,window, gc, sb->x-4, sb->y, sb->x-1, sb->y+1);
-    XDrawLine(display,window, gc, sb->x-1, sb->y+1, sb->x, sb->y+4);
-    XDrawLine(display,window, gc, sb->x, sb->y+4, sb->x+1, sb->y+1);
-    XDrawLine(display,window, gc, sb->x+1, sb->y+1, sb->x+4, sb->y);
-    XDrawLine(display,window, gc, sb->x+4, sb->y, sb->x+1, sb->y-1);
-    XDrawLine(display,window, gc, sb->x+1, sb->y-1, sb->x, sb->y-4);
-    sb->x=sb->x-2;
-    XFlush(display);
+    XDrawLine(display,window, gc, sb->x, sb->y-sb->side, sb->x-1, sb->y-1);
+    XDrawLine(display,window, gc, sb->x-1, sb->y-1, sb->x-sb->side, sb->y);
+    XDrawLine(display,window, gc, sb->x-sb->side, sb->y, sb->x-1, sb->y+1);
+    XDrawLine(display,window, gc, sb->x-1, sb->y+1, sb->x, sb->y+sb->side);
+    XDrawLine(display,window, gc, sb->x, sb->y+sb->side, sb->x+1, sb->y+1);
+    XDrawLine(display,window, gc, sb->x+1, sb->y+1, sb->x+sb->side, sb->y);
+    XDrawLine(display,window, gc, sb->x+sb->side, sb->y, sb->x+1, sb->y-1);
+    XDrawLine(display,window, gc, sb->x+1, sb->y-1, sb->x, sb->y-sb->side);
 }
 
-void erase_dot_bulb(void * dt){
-    struct dot_bulb* db = (struct dot_bulb*) dt;
-    int current_state = db->state;
-    switch(current_state){
-        case 0:
-            XSetForeground(display, gc, WhitePixel(display,screen_num));
-            XFillRectangle(display, window, DefaultGC(display, s), db->x, db->y, db->side, db->side);
-            XFillRectangle(display, window, DefaultGC(display, s), db->x+1, db->y, db->side, db->side);
-            XFillRectangle(display, window, DefaultGC(display, s), db->x, db->y-1, db->side, db->side);
-            XFillRectangle(display, window, DefaultGC(display, s), db->x, db->y+1, db->side, db->side);
+void move_world(void){
+
+    for(int i = 0;i<world->size;i++){
+    switch(world->drawables[i]->type){
+        case monster:
+            world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
             break;
-        case 1:
+        case dot:
+            switch(world->drawables[i]->dot.direction){
+                case still:
+                    break;
+                case up:
+                    world->drawables[i]->dot.y = (height+world->drawables[i]->dot.y - 1)%height;
+                    break;
+                case down:
+                    world->drawables[i]->dot.y = (world->drawables[i]->dot.y + 1)%height; 
+                    break;
+                case left:
+                    world->drawables[i]->dot.x = (width+world->drawables[i]->dot.x - 1)%width; 
+                    break; 
+                case right:
+                    world->drawables[i]->dot.x = (world->drawables[i]->dot.x + 1)%width;  
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case shot:
+            if(world->drawables[i]->shot.x >= width){
+                erase_drawable(i);
+                break;
+            } 
+            world->drawables[i]->shot.x += 2;
+            break;
+        case star:
+            if(world->drawables[i]->star.x <= 0){
+                erase_drawable(i);
+                break;
+            }
+            world->drawables[i]->star.x -= world->drawables[i]->star.speed;
             break;
         default:
             break;
-    }
-    XFlush(display);
+        }
+     }
+
 }
 
 /* returns system resources to the system */
