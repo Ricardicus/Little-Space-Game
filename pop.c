@@ -23,6 +23,7 @@
 
 /* Function type declarations */
 typedef void (*draw_callback)(void*);
+typedef int (*collision_callback)(int,int);
 typedef void (*timer_func)(void);
 
   /* Struct declarations */
@@ -35,6 +36,7 @@ struct dot_bulb {
     int state_count;
     int nbr_of_states;
     draw_callback draw_f;
+    collision_callback collide_f;
 };
 
 struct shot_bulb {
@@ -52,6 +54,7 @@ struct monster_bulb {
     int state;
     int nbr_of_states;
     draw_callback draw_f;
+    collision_callback collide_f;
 };
 
 struct star_bulb {
@@ -71,6 +74,7 @@ struct enemy_aircraft {
     int fire_count;
     int direction;
     draw_callback draw_f;
+    collision_callback collide_f;
 };
 
 /* Type declarations */
@@ -106,6 +110,7 @@ void draw_star(void*);
 void draw_aircraft(int,int);
 void draw_enemy_aircraft(int,int);
 void create_fire_shot(int,int,int);
+int check_collision_aircraft(int,int);
 void erase_drawable(int id);
 void create_enemy(void);
 world_t* init_world(int);
@@ -131,13 +136,16 @@ Arg args[16];
 int width;
 int height;
 GC gc;
-
+unsigned int killed;
 
 /* Application related variables */
 int alive=1;
 int is_initialised=0;
+int maxheight = 2000;
+int maxwidth = 2000;
+char collision_grid[2000][2000];
 
-/* the world */
+/* the world */  
 world_t * world;
 
 world_t * init_world(int max){
@@ -145,6 +153,15 @@ world_t * init_world(int max){
     wd->size=0;
     wd->max_nbr_of_objects=max;
     wd->drawables = (drawable_t**) malloc(sizeof(drawable_t*)*wd->max_nbr_of_objects);
+
+    for(int i = 0; i < maxwidth; i++){
+        for(int n = 0; n < maxheight; n++){
+            collision_grid[i][n] = 0;
+        }
+    }
+
+    killed = 0;
+
     return wd;
 }
 
@@ -183,6 +200,23 @@ void create_fire_shot(int x, int y, int direction){
 
     world->drawables[i] = drawable;
     world->size++;
+}
+
+void collision_check_world(){
+    for(int i = 0;i<world->size;i++){
+        switch(world->drawables[i]->type){
+            case enemy:
+                printf("collision function returns: %d\n",world->drawables[i]->enemy.collide_f(world->drawables[i]->enemy.x,world->drawables[i]->enemy.y));
+                if(world->drawables[i]->enemy.collide_f(world->drawables[i]->enemy.x,world->drawables[i]->enemy.y)){
+                    printf("Collision!\n");
+                    world->drawables[i]->enemy.state = 3;
+                    world->drawables[i]->enemy.substate = 0;
+                }
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void draw_world(){
@@ -322,8 +356,14 @@ static void* event_loop(void*data)
 
 void world_refresh(){
     XClearWindow(display, window);
-    move_world();
+    printf("draw_world call\n");
     draw_world();
+    printf("collision_check_world call\n");
+    collision_check_world();
+    printf("move_world call\n");
+    move_world();
+    printf("collision_check_world call\n");
+    collision_check_world();
 }
 
 void destroy_world(){
@@ -335,12 +375,29 @@ void destroy_world(){
     free(world);
 }
 
+int check_collision_here(int x, int y){
+    if(x<0 | x>width | y<0 | y>height)
+        return 0;
+    return collision_grid[x][y];
+}
+
+int check_collision_aircraft(int x, int y){
+    int collision = 0;
+    for(int c = x+2; c<x+5; c++){
+        for(int r = y-5; r<y+5; r++){
+            collision+=check_collision_here(c,r);
+        }
+    }
+    printf("collision:%d\n",collision);
+    return collision;
+}
+
 void initialise_world_1(void){
     if(is_initialised){
         return;
     }
 
-    world = init_world(1000);
+    world = init_world(10000);
 
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
     /* one dot to start with */ 
@@ -495,6 +552,9 @@ void draw_enemy(void * dt){
             }
             XFillRectangle(display, window, gc, db->x+2, db->y, 1,1);
             break;
+        case 3:
+            XDrawArc(display, window, gc, db->x, db->y, 20, 20, db->substate*20*64,db->substate*20*64+20);
+            XDrawArc(display, window, gc, db->x, db->y, 10, 10, db->substate*30*64,db->substate*30*64+20);
         default:
             break;
     }
@@ -537,6 +597,7 @@ void create_enemy(void){
     drawable->enemy.substate = 0;
     drawable->enemy.fire_count = 0;
     drawable->enemy.draw_f = draw_enemy;
+    drawable->enemy.collide_f = check_collision_aircraft;
     drawable->type = enemy;
 
     world->drawables[world->size] = drawable;
@@ -592,6 +653,7 @@ void move_world(void){
             world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
             break;
         case dot:
+            printf("dot drawn\n");
             switch(world->drawables[i]->dot.direction){
                 case still:
                     break;
@@ -612,13 +674,22 @@ void move_world(void){
             }
             break;
         case shot:
-            if(world->drawables[i]->shot.x >= width){
+            printf("shot.x: %d\n", world->drawables[i]->shot.x);
+            printf("shot draw\n");
+            if(world->drawables[i]->shot.x >= width | world->drawables[i]->shot.x <= 0){
+                printf("skott utanför\n");
                 erase_drawable(i);
                 break;
             } 
-            world->drawables[i]->shot.x += world->drawables[i]->shot.direction;
+            if(world->drawables[i]->shot.x >= 0){
+                collision_grid[world->drawables[i]->shot.x][world->drawables[i]->shot.y] = 0; 
+                world->drawables[i]->shot.x += world->drawables[i]->shot.direction;
+                if(world->drawables[i]->shot.x >= 0)
+                    collision_grid[world->drawables[i]->shot.x][world->drawables[i]->shot.y] = 1; 
+            }
             break;
         case star:
+            printf("star draw\n");
             if(world->drawables[i]->star.x <= 0){
                 erase_drawable(i);
                 break;
@@ -626,10 +697,12 @@ void move_world(void){
             world->drawables[i]->star.x -= world->drawables[i]->star.speed;
             break;
         case enemy:
+            printf("enemy drawn\n");
             switch(world->drawables[i]->enemy.state){
                 case 0:
                     if(world->drawables[i]->enemy.substate == 10){
                         world->drawables[i]->enemy.state = 1;
+                        world->drawables[i]->enemy.substate = 0;
                     } else {
                         world->drawables[i]->enemy.substate += 1;
                     }
@@ -660,6 +733,15 @@ void move_world(void){
                         default:
                             break;
                     }
+                    break;
+                case 3:
+                    if(world->drawables[i]->enemy.substate == 10){
+                        world->drawables[i]->enemy.substate = 0;
+                        erase_drawable(i);
+                    } else {
+                        world->drawables[i]->enemy.substate += 1;
+                    }
+                    break;
                 default:
                     break;    
             }
