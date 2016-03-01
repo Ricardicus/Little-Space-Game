@@ -206,9 +206,7 @@ void collision_check_world(){
     for(int i = 0;i<world->size;i++){
         switch(world->drawables[i]->type){
             case enemy:
-                printf("collision function returns: %d\n",world->drawables[i]->enemy.collide_f(world->drawables[i]->enemy.x,world->drawables[i]->enemy.y));
                 if(world->drawables[i]->enemy.collide_f(world->drawables[i]->enemy.x,world->drawables[i]->enemy.y)){
-                    printf("Collision!\n");
                     world->drawables[i]->enemy.state = 3;
                     world->drawables[i]->enemy.substate = 0;
                 }
@@ -218,6 +216,9 @@ void collision_check_world(){
         }
     }
 }
+
+char units_killed_message[256];
+int len;
 
 void draw_world(){
     int r = rand()%20;
@@ -245,6 +246,12 @@ void draw_world(){
                 break;
         }
     }
+
+    sprintf(units_killed_message,"Units killed: %d", killed);
+    len = strlen(units_killed_message);
+
+    XDrawString(display, window, DefaultGC(display, s), width - len-100, height- 20, units_killed_message, len);
+
     XFlush(display);
 }
 
@@ -737,6 +744,7 @@ void move_world(void){
                 case 3:
                     if(world->drawables[i]->enemy.substate == 10){
                         world->drawables[i]->enemy.substate = 0;
+                        killed++;
                         erase_drawable(i);
                     } else {
                         world->drawables[i]->enemy.substate += 1;
