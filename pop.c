@@ -23,6 +23,7 @@
 
 /* Function type declarations */
 typedef void (*draw_callback)(void*);
+typedef int (*move_callback)(void*);
 typedef int (*collision_callback)(int,int);
 typedef void (*timer_func)(void);
 
@@ -63,6 +64,7 @@ struct star_bulb {
     int speed;
     int side;
     draw_callback draw_f;
+    move_callback move_f;
 };
 
 struct enemy_aircraft {
@@ -109,6 +111,7 @@ void draw_enemy(void*);
 void draw_star(void*);
 void draw_aircraft(int,int);
 void draw_enemy_aircraft(int,int);
+int move_star(void*);
 void create_fire_shot(int,int,int);
 int check_collision_aircraft(int,int);
 void erase_drawable(int id);
@@ -179,6 +182,7 @@ void create_star(void){
     drawable->star.speed = 1 + rand()%4;
     drawable->star.side = 3 + rand()%6;
     drawable->star.draw_f = draw_star;
+    drawable->star.move_f = move_star;
     drawable->type = star;
 
     world->drawables[i] = drawable;
@@ -363,13 +367,9 @@ static void* event_loop(void*data)
 
 void world_refresh(){
     XClearWindow(display, window);
-    printf("draw_world call\n");
     draw_world();
-    printf("collision_check_world call\n");
     collision_check_world();
-    printf("move_world call\n");
     move_world();
-    printf("collision_check_world call\n");
     collision_check_world();
 }
 
@@ -380,6 +380,7 @@ void destroy_world(){
     }
     free(world->drawables);
     free(world);
+    printf("world freed\n");
 }
 
 int check_collision_here(int x, int y){
@@ -395,7 +396,6 @@ int check_collision_aircraft(int x, int y){
             collision+=check_collision_here(c,r);
         }
     }
-    printf("collision:%d\n",collision);
     return collision;
 }
 
@@ -432,7 +432,6 @@ int main(int argc, char **argv)
     display = XOpenDisplay(NULL);
     if (display == NULL)
     {
-        fprintf(stderr, "Cannot open display\n");
         exit(1);
     }
  
@@ -503,11 +502,8 @@ int main(int argc, char **argv)
     while(alive){
         continue;
     }
- 
+
     /* close connection to server */
-    XCloseDisplay(display);
- 
-    pthread_exit(NULL);
     destroy_world();
     close_x();
     return 0;
@@ -660,7 +656,6 @@ void move_world(void){
             world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
             break;
         case dot:
-            printf("dot drawn\n");
             switch(world->drawables[i]->dot.direction){
                 case still:
                     break;
@@ -681,10 +676,7 @@ void move_world(void){
             }
             break;
         case shot:
-            printf("shot.x: %d\n", world->drawables[i]->shot.x);
-            printf("shot draw\n");
             if(world->drawables[i]->shot.x >= width | world->drawables[i]->shot.x <= 0){
-                printf("skott utanför\n");
                 erase_drawable(i);
                 break;
             } 
@@ -696,15 +688,11 @@ void move_world(void){
             }
             break;
         case star:
-            printf("star draw\n");
-            if(world->drawables[i]->star.x <= 0){
+            if(world->drawables[i]->star.move_f(&world->drawables[i]->star)){
                 erase_drawable(i);
-                break;
             }
-            world->drawables[i]->star.x -= world->drawables[i]->star.speed;
             break;
         case enemy:
-            printf("enemy drawn\n");
             switch(world->drawables[i]->enemy.state){
                 case 0:
                     if(world->drawables[i]->enemy.substate == 10){
@@ -755,7 +743,15 @@ void move_world(void){
             }
         }
      }
+}
 
+int move_star(void * sb){
+    struct star_bulb * st = (struct star_bulb *) sb;
+    if(st->x <= 0){
+        return 1;
+    }
+    st->x -= st->speed;
+    return 0;
 }
 
 /* returns system resources to the system */
@@ -763,5 +759,6 @@ void close_x() {
     XFreeColormap(display,colormap);
     XDestroyWindow(display,window);
     XCloseDisplay(display); 
-    exit(1);                
+    exit(1);       
+    printf("close call\n");         
 }
