@@ -38,6 +38,7 @@ struct dot_bulb {
     int nbr_of_states;
     draw_callback draw_f;
     collision_callback collide_f;
+    move_callback move_f;
 };
 
 struct shot_bulb {
@@ -45,6 +46,7 @@ struct shot_bulb {
     int y;
     int direction;
     draw_callback draw_f;
+    move_callback move_f;
 };
 
 struct monster_bulb {
@@ -77,6 +79,7 @@ struct enemy_aircraft {
     int direction;
     draw_callback draw_f;
     collision_callback collide_f;
+    move_callback move_f;
 };
 
 /* Type declarations */
@@ -112,6 +115,9 @@ void draw_star(void*);
 void draw_aircraft(int,int);
 void draw_enemy_aircraft(int,int);
 int move_star(void*);
+int move_shot(void*);
+int move_dot(void*);
+int move_enemy(void*);
 void create_fire_shot(int,int,int);
 int check_collision_aircraft(int,int);
 void erase_drawable(int id);
@@ -200,6 +206,7 @@ void create_fire_shot(int x, int y, int direction){
     drawable->shot.x = x;
     drawable->shot.y = y;
     drawable->shot.draw_f = draw_fire_shot;
+    drawable->shot.move_f = move_shot;
     drawable->type = shot;
 
     world->drawables[i] = drawable;
@@ -404,7 +411,7 @@ void initialise_world_1(void){
         return;
     }
 
-    world = init_world(10000);
+    world = init_world(100000);
 
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
     /* one dot to start with */ 
@@ -416,6 +423,7 @@ void initialise_world_1(void){
     drawable->dot.state_count = 0;
     drawable->dot.nbr_of_states = 1;
     drawable->dot.draw_f = draw_dot_bulb;
+    drawable->dot.move_f = move_dot;
     drawable->type = dot;
 
     world->drawables[0] = drawable;
@@ -601,6 +609,7 @@ void create_enemy(void){
     drawable->enemy.fire_count = 0;
     drawable->enemy.draw_f = draw_enemy;
     drawable->enemy.collide_f = check_collision_aircraft;
+    drawable->enemy.move_f = move_enemy;
     drawable->type = enemy;
 
     world->drawables[world->size] = drawable;
@@ -648,44 +657,17 @@ void draw_star(void * dt){
 
 void move_world(void){
 
-    static int enemy_move_count = 0;
-
     for(int i = 0;i<world->size;i++){
     switch(world->drawables[i]->type){
         case monster:
             world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
             break;
         case dot:
-            switch(world->drawables[i]->dot.direction){
-                case still:
-                    break;
-                case up:
-                    world->drawables[i]->dot.y = (height+world->drawables[i]->dot.y - 1)%height;
-                    break;
-                case down:
-                    world->drawables[i]->dot.y = (world->drawables[i]->dot.y + 1)%height; 
-                    break;
-                case left:
-                    world->drawables[i]->dot.x = (width+world->drawables[i]->dot.x - 1)%width; 
-                    break; 
-                case right:
-                    world->drawables[i]->dot.x = (world->drawables[i]->dot.x + 1)%width;  
-                    break;
-                default:
-                    break;
-            }
+            world->drawables[i]->dot.move_f(&world->drawables[i]->dot);
             break;
         case shot:
-            if(world->drawables[i]->shot.x >= width | world->drawables[i]->shot.x <= 0){
+            if(world->drawables[i]->shot.move_f(&world->drawables[i]->shot))
                 erase_drawable(i);
-                break;
-            } 
-            if(world->drawables[i]->shot.x >= 0){
-                collision_grid[world->drawables[i]->shot.x][world->drawables[i]->shot.y] = 0; 
-                world->drawables[i]->shot.x += world->drawables[i]->shot.direction;
-                if(world->drawables[i]->shot.x >= 0)
-                    collision_grid[world->drawables[i]->shot.x][world->drawables[i]->shot.y] = 1; 
-            }
             break;
         case star:
             if(world->drawables[i]->star.move_f(&world->drawables[i]->star)){
@@ -693,54 +675,8 @@ void move_world(void){
             }
             break;
         case enemy:
-            switch(world->drawables[i]->enemy.state){
-                case 0:
-                    if(world->drawables[i]->enemy.substate == 10){
-                        world->drawables[i]->enemy.state = 1;
-                        world->drawables[i]->enemy.substate = 0;
-                    } else {
-                        world->drawables[i]->enemy.substate += 1;
-                    }
-                    break;
-                case 1:
-                    if(enemy_move_count == 100){
-                        enemy_move_count = 0;
-                    } else {
-                        if(!(enemy_move_count % 10))
-                            world->drawables[i]->enemy.direction = rand()%3;
-                        int shoot = rand()%14;
-                        if(!shoot){
-                            world->drawables[i]->enemy.state=2;
-                            world->drawables[i]->enemy.fire_count=1;
-                            create_fire_shot(world->drawables[i]->enemy.x,world->drawables[i]->enemy.y,-2);
-                        }
-                        enemy_move_count++;
-                    }
-                    switch(world->drawables[i]->enemy.direction){
-                        case 0:
-                            break;
-                        case 1:
-                            world->drawables[i]->enemy.y = (height+world->drawables[i]->enemy.y - 1)%height;
-                            break;
-                        case 2:
-                            world->drawables[i]->enemy.y = (world->drawables[i]->enemy.y + 1)%height; 
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
-                case 3:
-                    if(world->drawables[i]->enemy.substate == 10){
-                        world->drawables[i]->enemy.substate = 0;
-                        killed++;
-                        erase_drawable(i);
-                    } else {
-                        world->drawables[i]->enemy.substate += 1;
-                    }
-                    break;
-                default:
-                    break;    
-            }
+            if(world->drawables[i]->enemy.move_f(&world->drawables[i]->enemy))
+                erase_drawable(i);
         }
      }
 }
@@ -751,6 +687,100 @@ int move_star(void * sb){
         return 1;
     }
     st->x -= st->speed;
+    return 0;
+}
+
+int move_shot(void * sb){
+    struct shot_bulb * st = (struct shot_bulb *) sb;
+
+    if(st->x >= width | st->x <= 0)
+        return 1;
+    if(st->x >= 0){
+        collision_grid[st->x][st->y] = 0; 
+        st->x+=st->direction;
+        if(st->x >= 0)
+            collision_grid[st->x][st->y] = 1;
+    }
+    return 0;
+}
+
+int move_enemy(void * eb){
+
+    struct enemy_aircraft * ea = (struct enemy_aircraft *) eb;
+
+    static int enemy_move_count = 0;
+
+    switch(ea->state){
+        case 0:
+            if(ea->substate == 10){
+                ea->state = 1;
+            ea->substate = 0;
+            } else {
+                ea->substate += 1;
+            }
+            break;
+        case 1:
+            if(enemy_move_count == 100){
+                enemy_move_count = 0;
+            } else {
+                if(!(enemy_move_count % 10))
+                    ea->direction = rand()%3;
+                int shoot = rand()%40;
+                if(!shoot){
+                    ea->state=2;
+                    ea->fire_count=1;
+                    create_fire_shot(ea->x,ea->y,-2);
+                }
+                enemy_move_count++;
+            }
+            switch(ea->direction){
+                case 0:
+                    break;
+                case 1:
+                    ea->y = (height+ea->y - 1)%height;
+                    break;
+                case 2:
+                    ea->y = (ea->y + 1)%height; 
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case 3:
+            if(ea->substate == 10){
+                ea->substate = 0;
+                killed++;
+                return 1;
+            } else {
+                ea->substate += 1;
+            }
+            break;
+        default:
+            break; 
+    }
+    return 0;
+}
+
+int move_dot(void * sb){
+    struct dot_bulb * dot= (struct dot_bulb*) sb;
+    switch(dot->direction){
+        case still:
+            break;
+        case up:
+            dot->y = (height+dot->y - 1)%height;
+            break;
+        case down:
+            dot->y = (dot->y + 1)%height; 
+            break;
+        case left:
+            dot->x = (width+dot->x - 1)%width; 
+            break; 
+        case right:
+            dot->x = (dot->x + 1)%width;  
+            break;
+        default:
+            break;
+    }
     return 0;
 }
 
