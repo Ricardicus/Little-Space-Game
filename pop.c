@@ -295,7 +295,7 @@ void draw_world(){
     XFlush(display);
 }
 
-/* A thread will run this function and another function will be called in regular intervals within the forever-true-while-loop
+/* A thread will run this function and another function, that is passed in as function parameter 'tf', will be called in regular intervals within the forever-true-while-loop
 * the reason for that is to make the game logic faster that the display, and for that matter, also slow down the game, 
 * which is super necessary because it runs super fast otherwise.. */
 static void * timer_loop(void * tf)
