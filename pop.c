@@ -27,9 +27,7 @@ typedef int (*move_callback)(void*);
 typedef int (*collision_callback)(int,int);
 typedef void (*timer_func)(void);
 
-  /* Struct declarations
-  *  Each struct defines certain types of elements within the game
-  */
+/* Struct declarations,  each struct define a certain type of element within the game */
 struct dot_bulb {
     int x;
     int y;
