@@ -33,6 +33,7 @@ struct dot_bulb {
     int y;
     int side;
     int state;
+    int substate;
     int direction;
     int state_count;
     int nbr_of_states;
@@ -106,6 +107,13 @@ typedef struct world_u {
     drawable_t ** drawables;
 } world_t;
 
+typedef struct shot_request_s {
+    int active;
+    int direction;
+    int x;
+    int y;
+} shot_request_t;
+
 /* Function declarations */
 void draw_dot_bulb(void*);
 void erase_dot_bulb(void*);
@@ -119,6 +127,7 @@ int move_shot(void*);
 int move_dot(void*);
 int move_enemy(void*);
 void create_fire_shot(int,int,int);
+void shot_request(void);
 int check_collision_aircraft(int,int);
 void erase_drawable(int id);
 void create_enemy(void);
@@ -156,6 +165,7 @@ char collision_grid[2000][2000];
 
 /* the world */  
 world_t * world;
+shot_request_t shot_req;
 
 world_t * init_world(int max){
     world_t * wd = (world_t*) malloc(sizeof(world_t));
@@ -170,6 +180,8 @@ world_t * init_world(int max){
     }
 
     killed = 0;
+
+    shot_req.active = 0;
 
     return wd;
 }
@@ -220,6 +232,13 @@ void collision_check_world(){
                 if(world->drawables[i]->enemy.collide_f(world->drawables[i]->enemy.x,world->drawables[i]->enemy.y)){
                     world->drawables[i]->enemy.state = 3;
                     world->drawables[i]->enemy.substate = 0;
+                }
+                break;
+            case dot:
+                if(world->drawables[i]->dot.collide_f(world->drawables[i]->dot.x,world->drawables[i]->dot.y)){
+                    world->drawables[i]->dot.state = 2;
+                    world->drawables[i]->dot.substate = 0;
+                    printf("Hit!!\n");
                 }
                 break;
             default:
@@ -360,7 +379,10 @@ static void* event_loop(void*data)
                 case 'f':
                     world->drawables[0]->dot.state=1;
                     world->drawables[0]->dot.state_count=1;
-                    create_fire_shot(world->drawables[0]->dot.x,world->drawables[0]->dot.y,2);
+                    shot_req.x = world->drawables[0]->dot.x;
+                    shot_req.y = world->drawables[0]->dot.y;
+                    shot_req.active = 1;
+                    shot_req.direction = 2;
                     break;
                 case 'e':
                     create_enemy();
@@ -372,8 +394,16 @@ static void* event_loop(void*data)
     return 0;
 }
 
+void check_requests(void){
+    if(shot_req.active){
+        create_fire_shot(shot_req.x,shot_req.y,shot_req.direction);
+        shot_req.active = 0;
+    }
+}
+
 void world_refresh(){
     XClearWindow(display, window);
+    check_requests();
     draw_world();
     collision_check_world();
     move_world();
@@ -406,6 +436,17 @@ int check_collision_aircraft(int x, int y){
     return collision;
 }
 
+int check_collision_player(int x, int y){
+    int collision = 0;
+    for(int c = x-1; c>x-5; c--){
+        for(int r = y-5; r<y+5; r++){
+            collision+=check_collision_here(c,r);
+        }
+    }
+    return collision;
+}
+
+
 void initialise_world_1(void){
     if(is_initialised){
         return;
@@ -424,6 +465,7 @@ void initialise_world_1(void){
     drawable->dot.nbr_of_states = 1;
     drawable->dot.draw_f = draw_dot_bulb;
     drawable->dot.move_f = move_dot;
+    drawable->dot.collide_f = check_collision_player;
     drawable->type = dot;
 
     world->drawables[0] = drawable;
@@ -592,6 +634,9 @@ void draw_dot_bulb(void * dt){
             }
             XFillRectangle(display, window, gc, db->x+2, db->y, 1,1);
             break;
+        case 2:
+            XDrawArc(display, window, gc, db->x, db->y, 20, 20, db->substate*20*64,db->substate*20*64+20);
+            XDrawArc(display, window, gc, db->x, db->y, 10, 10, db->substate*30*64,db->substate*30*64+20);
         default:
             break;
     }
@@ -638,7 +683,7 @@ void erase_drawable(int id){
 void draw_fire_shot(void * dt){
     struct shot_bulb* sb = (struct shot_bulb*) dt;
     XSetForeground(display, gc, red.pixel);
-    XFillRectangle(display, window, gc, sb->x, sb->y, 1,1);
+    XFillArc(display, window, gc, sb->x, sb->y, 4, 4, 0,64*360);
     XSetForeground(display, gc, BlackPixel(display,screen_num));
 }
 
@@ -780,6 +825,13 @@ int move_dot(void * sb){
             break;
         default:
             break;
+    }
+    if(dot->state == 2){
+        dot->substate+=1;
+    }
+    if(dot->substate==20){
+        dot->state=0;
+        dot->substate=0;
     }
     return 0;
 }
