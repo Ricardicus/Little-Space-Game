@@ -27,7 +27,9 @@ typedef int (*move_callback)(void*);
 typedef int (*collision_callback)(int,int);
 typedef void (*timer_func)(void);
 
-  /* Struct declarations */
+  /* Struct declarations
+  *  Each struct defines certain types of elements within the game
+  */
 struct dot_bulb {
     int x;
     int y;
@@ -161,12 +163,17 @@ int alive=1;
 int is_initialised=0;
 int maxheight = 2000;
 int maxwidth = 2000;
+
+/* used for checking collisions, more specificly its a matrix describing where dangerous stuff is */
 char collision_grid[2000][2000];
 
 /* the world */  
 world_t * world;
+
+/* whenever the user presses 'f' the player will fire and a shot_request will be generated */
 shot_request_t shot_req;
 
+/* returns a pointer to a world */
 world_t * init_world(int max){
     world_t * wd = (world_t*) malloc(sizeof(world_t));
     wd->size=0;
@@ -186,6 +193,7 @@ world_t * init_world(int max){
     return wd;
 }
 
+/* In space there are stars, so this function creates beautiful moving stars in the background */ 
 void create_star(void){
 
     int i = world->size;
@@ -207,6 +215,7 @@ void create_star(void){
     world->size++;
 }
 
+/* to generate fire balls */
 void create_fire_shot(int x, int y, int direction){
     int i = world->size;
     if(i >= world->max_nbr_of_objects){
@@ -225,6 +234,7 @@ void create_fire_shot(int x, int y, int direction){
     world->size++;
 }
 
+/* checks if there are collisions in the world */
 void collision_check_world(){
     for(int i = 0;i<world->size;i++){
         switch(world->drawables[i]->type){
@@ -247,9 +257,11 @@ void collision_check_world(){
     }
 }
 
+/* There variables stores information that will be used to write strings onto the screen */
 char units_killed_message[256];
 int len;
 
+/* structuraly calling functions to draw the content of each world-element onto the XWindow */
 void draw_world(){
     int r = rand()%20;
     if(r == 14){
@@ -280,11 +292,14 @@ void draw_world(){
     sprintf(units_killed_message,"Units killed: %d", killed);
     len = strlen(units_killed_message);
 
-    XDrawString(display, window, DefaultGC(display, s), width - len-100, height- 20, units_killed_message, len);
+    XDrawString(display, window, DefaultGC(display, s), width - len*8, height- 20, units_killed_message, len);
 
     XFlush(display);
 }
 
+/* A thread will run this function and another function will be called in regular intervals within the forever-true-while-loop
+* the reason for that is to make the game logic faster that the display, and for that matter, also slow down the game, 
+* which is super necessary because it runs super fast otherwise.. */
 static void * timer_loop(void * tf)
 {
     unsigned long event_trigger = 10000000;
@@ -304,6 +319,8 @@ static void * timer_loop(void * tf)
     pthread_exit(NULL);
 }
 
+/* A thread will run this function that is used to get user input in the game.
+* It listens to keys being pressed and acts accordingly. */
 static void* event_loop(void*data)
 {
     /* event loop */
@@ -332,19 +349,13 @@ static void* event_loop(void*data)
             }
         }
 
-        /* exit on key press */
-//        else if (event.type == ButtonPress){
-
-//            XDrawString(display, window, DefaultGC(display, s), event.xbutton.x,event.xbutton.y, "Click", 5);
-//        }
-
-
         else if (event.type == KeyPress && XLookupString(&event.xkey,text,255,&key,0)==1) {
         /* the XLookupString routine converts the invent
            KeyPress data into regular text.  Weird but necessary.
         */
 
             switch(text[0]){
+                /* to quit the game, 'q' should be pressed */
                 case 'q':
                     alive=0;
                     break;
@@ -394,6 +405,8 @@ static void* event_loop(void*data)
     return 0;
 }
 
+/* to synchronize the game-loop thread with the input-istener thread when the player should fire
+* this function is necessary */ 
 void check_requests(void){
     if(shot_req.active){
         create_fire_shot(shot_req.x,shot_req.y,shot_req.direction);
@@ -401,6 +414,8 @@ void check_requests(void){
     }
 }
 
+/* Called at regular intervals in the game-loop, it is the function passed as input argument to 
+* the 'timer_loop' */ 
 void world_refresh(){
     XClearWindow(display, window);
     check_requests();
@@ -410,6 +425,7 @@ void world_refresh(){
     collision_check_world();
 }
 
+/* allocated memory is being freed */
 void destroy_world(){
     int size = world->size;
     for(int i=0; i<size;i++){
@@ -420,12 +436,14 @@ void destroy_world(){
     printf("world freed\n");
 }
 
+/* checks the collision grids for a collision */
 int check_collision_here(int x, int y){
     if(x<0 | x>width | y<0 | y>height)
         return 0;
     return collision_grid[x][y];
 }
 
+/* checks for collision with an aircraft that is located at a specified coordinate (x,y) */
 int check_collision_aircraft(int x, int y){
     int collision = 0;
     for(int c = x+2; c<x+5; c++){
@@ -436,6 +454,7 @@ int check_collision_aircraft(int x, int y){
     return collision;
 }
 
+/* checks for collision with the player that is located at a specified coordinate (x,y) */
 int check_collision_player(int x, int y){
     int collision = 0;
     for(int c = x-1; c>x-5; c--){
@@ -446,7 +465,7 @@ int check_collision_player(int x, int y){
     return collision;
 }
 
-
+/* initilises the world_t instance of the game */
 void initialise_world_1(void){
     if(is_initialised){
         return;
@@ -472,8 +491,7 @@ void initialise_world_1(void){
     world->size = 1;
 }
 
-
-
+/* main entry, calls initialisation functions for the game logic and the and X window system */
 int main(int argc, char **argv)
 {    /* prepating the X window client for multi-threading */
     XInitThreads();
@@ -561,6 +579,7 @@ int main(int argc, char **argv)
 
 void draw_aircraft(int x, int y){
     XSetForeground(display, gc, BlackPixel(display,screen_num));
+ //   XDrawArc(display,window,gc,x,y-2,5,5,0,64*360);
     XDrawLine(display,window, gc, x, y, x-5, y+5);
     XDrawLine(display,window, gc, x, y, x-5, y-5);
     XDrawLine(display,window, gc, x, y, x-5,y);
