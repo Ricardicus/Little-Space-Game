@@ -155,6 +155,7 @@ int width;
 int height;
 GC gc;
 unsigned int killed;
+unsigned int lives;
 
 /* Application related variables */
 int alive=1;
@@ -246,6 +247,7 @@ void collision_check_world(){
                 if(world->drawables[i]->dot.collide_f(world->drawables[i]->dot.x,world->drawables[i]->dot.y)){
                     world->drawables[i]->dot.state = 2;
                     world->drawables[i]->dot.substate = 0;
+                    if(!lives) alive=0;
                     printf("Hit!!\n");
                 }
                 break;
@@ -290,7 +292,19 @@ void draw_world(){
     sprintf(units_killed_message,"Units killed: %d", killed);
     len = strlen(units_killed_message);
 
-    XDrawString(display, window, DefaultGC(display, s), width - len*8, height- 20, units_killed_message, len);
+    XDrawString(display, window, DefaultGC(display, s), width - len*8, height - 20, units_killed_message, len);
+
+    memset(units_killed_message,'\0',256);    
+
+    sprintf(units_killed_message,"Lives left: ");
+    len = strlen(units_killed_message);
+    XDrawString(display, window, DefaultGC(display, s), len*4, height - 20, units_killed_message, len);
+
+    for(int i = 0; i<lives; i++){
+        XSetForeground(display, gc, red.pixel);
+        XFillRectangle(display, window, gc, len*4 + 70 + i*15, height - 27, 10,10);
+        XSetForeground(display, gc, BlackPixel(display,screen_num));
+    }
 
     XFlush(display);
 }
@@ -447,6 +461,7 @@ int check_collision_aircraft(int x, int y){
     for(int c = x+2; c<x+5; c++){
         for(int r = y-5; r<y+5; r++){
             collision+=check_collision_here(c,r);
+            if(collision) break;
         }
     }
     return collision;
@@ -458,6 +473,7 @@ int check_collision_player(int x, int y){
     for(int c = x-1; c>x-5; c--){
         for(int r = y-5; r<y+5; r++){
             collision+=check_collision_here(c,r);
+            if(collision) break;
         }
     }
     return collision;
@@ -470,6 +486,8 @@ void initialise_world_1(void){
     }
 
     world = init_world(100000);
+
+    lives = 5;
 
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
     /* one dot to start with */ 
@@ -542,16 +560,9 @@ int main(int argc, char **argv)
     initialise_world_1();
 
 /* Initialising threads */
-    pthread_t thread_events_1, thread_events_2, thread_timer;
+    pthread_t thread_events, thread_timer;
 
-    rc = pthread_create(&thread_events_1, NULL, event_loop,NULL);
-    if(rc)
-    {
-        printf("ERROR; return code from pthread_create() is %d\n", rc);
-        exit(-1);
-    }
-
-    rc = pthread_create(&thread_events_2, NULL, event_loop,NULL);
+    rc = pthread_create(&thread_events, NULL, event_loop, NULL);
     if(rc)
     {
         printf("ERROR; return code from pthread_create() is %d\n", rc);
@@ -849,6 +860,7 @@ int move_dot(void * sb){
     if(dot->substate==20){
         dot->state=0;
         dot->substate=0;
+        lives--;
     }
     return 0;
 }
