@@ -258,7 +258,7 @@ void collision_check_world(){
 }
 
 /* There variables stores information that will be used to write strings onto the screen */
-char units_killed_message[256];
+char display_msg[256];
 int len;
 
 /* structuraly calling functions to draw the content of each world-element onto the XWindow */
@@ -289,16 +289,16 @@ void draw_world(){
         }
     }
 
-    sprintf(units_killed_message,"Units killed: %d", killed);
-    len = strlen(units_killed_message);
+    sprintf(display_msg,"Units killed: %d", killed);
+    len = strlen(display_msg);
 
-    XDrawString(display, window, DefaultGC(display, s), width - len*8, height - 20, units_killed_message, len);
+    XDrawString(display, window, DefaultGC(display, s), width - len*8, height - 20, display_msg, len);
 
-    memset(units_killed_message,'\0',256);    
+    memset(display_msg,'\0',256);    
 
-    sprintf(units_killed_message,"Lives left: ");
-    len = strlen(units_killed_message);
-    XDrawString(display, window, DefaultGC(display, s), len*4, height - 20, units_killed_message, len);
+    sprintf(display_msg,"Lives left: ");
+    len = strlen(display_msg);
+    XDrawString(display, window, DefaultGC(display, s), len*4, height - 20, display_msg, len);
 
     for(int i = 0; i<lives; i++){
         XSetForeground(display, gc, red.pixel);
