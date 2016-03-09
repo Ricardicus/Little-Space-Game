@@ -46,6 +46,7 @@ struct shot_bulb {
     int x;
     int y;
     int direction;
+    int fire_dmg;
     draw_callback draw_f;
     move_callback move_f;
 };
@@ -53,6 +54,7 @@ struct shot_bulb {
 struct laser_shot {
     int xstart;
     int y;
+    int direction;
     draw_callback draw_f;
     move_callback move_f;
 };
@@ -125,6 +127,7 @@ typedef struct shot_request_s {
     int active;
     enum shot_type_e shot_type;
     int direction;
+    int fire_dmg;
     int x;
     int y;
 } shot_request_t;
@@ -143,8 +146,9 @@ int move_shot(void*);
 int move_laser(void*);
 int move_dot(void*);
 int move_enemy(void*);
-void create_fire_shot(int,int,int);
-void create_laser_shot(int,int);
+void spawn_stuff(void);
+void create_fire_shot(int,int,int,int);
+void create_laser_shot(int,int,int);
 void shot_request(void);
 int check_collision_aircraft(int,int);
 void check_requests(void);
@@ -182,6 +186,7 @@ int alive=1;
 int is_initialised=0;
 int maxheight = 2000;
 int maxwidth = 2000;
+int enemy_spawn_rate_start = 400;
 
 /* used for checking collisions, more specificly its a matrix describing where dangerous stuff is */
 char collision_grid[2000][2000];
@@ -235,7 +240,7 @@ void create_star(void){
 }
 
 /* to generate fire balls */
-void create_fire_shot(int x, int y, int direction){
+void create_fire_shot(int x, int y, int direction, int fire_dmg_i){
     int i = world->size;
     if(i >= world->max_nbr_of_objects){
         return;
@@ -243,6 +248,7 @@ void create_fire_shot(int x, int y, int direction){
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
     /* one dot to start with */ 
     drawable->shot.direction = direction;
+    drawable->shot.fire_dmg = fire_dmg_i;
     drawable->shot.x = x;
     drawable->shot.y = y;
     drawable->shot.draw_f = draw_fire_shot;
@@ -254,7 +260,7 @@ void create_fire_shot(int x, int y, int direction){
 }
 
 /* to generate laser shots */
-void create_laser_shot(int x, int y){
+void create_laser_shot(int x, int y, int direction){
     int i = world->size;
 
     if(i >= world->max_nbr_of_objects){
@@ -266,6 +272,7 @@ void create_laser_shot(int x, int y){
     drawable->type = laser;
     drawable->laser.xstart = x;
     drawable->laser.y = y;
+    drawable->laser.direction = direction;
     drawable->laser.draw_f = draw_laser_shot;
     drawable->laser.move_f = move_laser;
 
@@ -290,12 +297,30 @@ void collision_check_world(){
                     world->drawables[i]->dot.state = 2;
                     world->drawables[i]->dot.substate = 0;
                     if(!lives) alive=0;
-                    printf("Hit!!\n");
                 }
                 break;
             default:
                 break;
         }
+    }
+}
+
+void spawn_stuff(void){
+
+    int enemy_spawn_rate = enemy_spawn_rate_start;
+
+    enemy_spawn_rate = enemy_spawn_rate_start - killed;
+    if(enemy_spawn_rate <= 20){
+        enemy_spawn_rate = 20;
+    }
+
+    int r = rand()%20;
+    if(r == 14){
+        create_star();
+    }
+    r = rand()%enemy_spawn_rate;
+    if(!r){
+        create_enemy();
     }
 }
 
@@ -305,10 +330,6 @@ int len;
 
 /* structuraly calling functions to draw the content of each world-element onto the XWindow */
 void draw_world(){
-    int r = rand()%20;
-    if(r == 14){
-        create_star();
-    }
     for(int i = 0;i<world->size;i++){
         switch(world->drawables[i]->type){
             case monster:
@@ -464,6 +485,7 @@ static void* event_loop(void*data)
                             world->drawables[0]->dot.state=1;
                             world->drawables[0]->dot.state_count=1;
                             shot_req.shot_type = fire_shot;
+                            shot_req.fire_dmg = 1;
                             shot_req.x = world->drawables[0]->dot.x;
                             shot_req.y = world->drawables[0]->dot.y;
                             shot_req.active = 1;
@@ -475,6 +497,7 @@ static void* event_loop(void*data)
                             shot_req.shot_type = laser_shot;
                             shot_req.x = world->drawables[0]->dot.x;
                             shot_req.y = world->drawables[0]->dot.y;
+                            shot_req.direction = 1;
                             shot_req.active = 1;
                             break;                         
                     }
@@ -505,10 +528,10 @@ void check_requests(void){
     if(shot_req.active){
         switch(shot_req.shot_type){
             case fire_shot:
-                create_fire_shot(shot_req.x,shot_req.y,shot_req.direction);
+                create_fire_shot(shot_req.x,shot_req.y,shot_req.direction,shot_req.fire_dmg);
                 break;
             case laser_shot:
-                create_laser_shot(shot_req.x,shot_req.y);
+                create_laser_shot(shot_req.x,shot_req.y, shot_req.direction);
                 break;
         }
         shot_req.active = 0;
@@ -520,6 +543,7 @@ void check_requests(void){
 void world_refresh(){
     XClearWindow(display, window);
     check_requests();
+    spawn_stuff();
     draw_world();
     collision_check_world();
     move_world();
@@ -547,10 +571,14 @@ int check_collision_here(int x, int y){
 /* checks for collision with an aircraft that is located at a specified coordinate (x,y) */
 int check_collision_aircraft(int x, int y){
     int collision = 0;
-    for(int c = x+2; c<x+5; c++){
+    for(int c = x-5; c<x+5; c++){
         for(int r = y-5; r<y+5; r++){
-            collision+=check_collision_here(c,r);
-            if(collision) break;
+            collision = check_collision_here(c,r);
+            if(collision == 1){
+                return collision;
+            } else {
+                collision = 0;
+            }
         }
     }
     return collision;
@@ -559,10 +587,14 @@ int check_collision_aircraft(int x, int y){
 /* checks for collision with the player that is located at a specified coordinate (x,y) */
 int check_collision_player(int x, int y){
     int collision = 0;
-    for(int c = x-1; c>x-5; c--){
+    for(int c = x+5; c>x-5; c--){
         for(int r = y-5; r<y+5; r++){
-            collision+=check_collision_here(c,r);
-            if(collision) break;
+            collision = check_collision_here(c,r);
+            if(collision == 2){
+                return collision;
+            } else {
+                collision = 0;
+            }
         }
     }
     return collision;
@@ -578,7 +610,7 @@ void initialise_world_1(void){
 
     lives = 5;
 
-    player_fire = laser_shot;
+    player_fire = fire_shot;
 
     drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
     /* one dot to start with */ 
@@ -810,8 +842,14 @@ void draw_laser_shot(void * dt){
 
     struct laser_shot* ls = (struct laser_shot*) dt;
     XSetForeground(display, gc, blue.pixel);
-    for(int n = ls->xstart; n<=width; n++){
-        XFillRectangle(display, window, gc, n, ls->y, 2,2);
+    if(ls->direction == 1){
+        for(int n = ls->xstart; n<=width; n++){
+            XFillRectangle(display, window, gc, n, ls->y, 2,2);
+        }
+    } else if(ls->direction == -1){
+        for(int n = ls->xstart; n>=0; n--){
+            XFillRectangle(display, window, gc, n, ls->y, 2,2);
+        }
     }
     XSetForeground(display, gc, BlackPixel(display,screen_num));
 
@@ -875,28 +913,43 @@ int move_shot(void * sb){
 
     if(st->x >= width | st->x <= 0)
         return 1;
-    if(st->x >= 0){
-        collision_grid[st->x][st->y] = 0; 
-        st->x+=st->direction;
-        if(st->x >= 0)
-            collision_grid[st->x][st->y] = 1;
-    }
+
+    collision_grid[st->x][st->y] = 0; 
+    st->x+=st->direction;
+    if(st->x >= 0 && st->x <= width)
+        collision_grid[st->x][st->y] = st->fire_dmg;
+
     return 0;
 }
 
 int move_laser(void * lb){
     struct laser_shot * ls = (struct laser_shot*) lb;
 
-    for(int x = ls->xstart; x<=width; x++){
-        collision_grid[x][ls->y] = 0;
-    }
 
-    ls->xstart += 30;
+    if(ls->direction == 1){
+        for(int x = ls->xstart; x<=width; x++){
+            collision_grid[x][ls->y] = 0;
+        }
 
-    if(ls->xstart >= width) return 1; 
+        ls->xstart += 30;
 
-    for(int x = ls->xstart; x<=width; x++){
-        collision_grid[x][ls->y] = 1;
+        if(ls->xstart >= width) return 1; 
+
+        for(int x = ls->xstart; x<=width; x++){
+            collision_grid[x][ls->y] = 1;
+        }
+    } else if(ls->direction){
+        for(int x = ls->xstart; x>=0; x--){
+            collision_grid[x][ls->y] = 0;
+        }
+
+        ls->xstart -= 30;
+
+        if(ls->xstart <= 0) return 1; 
+
+        for(int x = ls->xstart; x>=0; x--){
+            collision_grid[x][ls->y] = 1;
+        }
     }
 
     return 0;
@@ -927,7 +980,7 @@ int move_enemy(void * eb){
                 if(!shoot){
                     ea->state=2;
                     ea->fire_count=1;
-                    create_fire_shot(ea->x,ea->y,-2);
+                    create_fire_shot(ea->x,ea->y,-2,2);
                 }
                 enemy_move_count++;
             }
