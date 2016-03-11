@@ -59,6 +59,17 @@ struct laser_shot {
     move_callback move_f;
 };
 
+struct thunder_shot {
+    int **thunder_grid;
+    int xstart;
+    int ystart;
+    int state;
+    int direction;
+    int dmg;
+    draw_callback draw_f;
+    move_callback move_f;
+};
+
 struct monster_bulb {
     int x;
     int y;
@@ -98,6 +109,7 @@ typedef enum draw_type_e{
     dot,
     shot,
     laser,
+    thunder,
     star,
     enemy
 } draw_object_type_t;
@@ -110,6 +122,7 @@ typedef struct drawable_u {
     struct star_bulb star;
     struct enemy_aircraft enemy;
     struct laser_shot laser;
+    struct thunder_shot thunder;
 } drawable_t;
 
 typedef struct world_u {
@@ -120,7 +133,8 @@ typedef struct world_u {
 
 enum shot_type_e {
     fire_shot,
-    laser_shot
+    laser_shot,
+    thunder_shot
 };
 
 typedef struct shot_request_s {
@@ -137,6 +151,7 @@ void draw_dot_bulb(void*);
 void erase_dot_bulb(void*);
 void draw_fire_shot(void*);
 void draw_laser_shot(void*);
+void draw_thunder_shot(void*);
 void draw_enemy(void*);
 void draw_star(void*);
 void draw_aircraft(int,int);
@@ -144,11 +159,13 @@ void draw_enemy_aircraft(int,int);
 int move_star(void*);
 int move_shot(void*);
 int move_laser(void*);
+int move_thunder(void*);
 int move_dot(void*);
 int move_enemy(void*);
 void spawn_stuff(void);
 void create_fire_shot(int,int,int,int);
 void create_laser_shot(int,int,int);
+void create_thunder_shot(int,int,int,int);
 void shot_request(void);
 int check_collision_aircraft(int,int);
 void check_requests(void);
@@ -166,7 +183,7 @@ void move_world(void);
 *   Window variables
 */
 
-static XColor red,blue,white;
+static XColor red,blue,yellow,white;
 Display *display;
 Window window;
 XEvent event;
@@ -187,6 +204,7 @@ int is_initialised=0;
 int maxheight = 2000;
 int maxwidth = 2000;
 int enemy_spawn_rate_start = 400;
+int there_is_lightning = 0;
 
 /* used for checking collisions, more specificly its a matrix describing where dangerous stuff is */
 char collision_grid[2000][2000];
@@ -259,6 +277,50 @@ void create_fire_shot(int x, int y, int direction, int fire_dmg_i){
     world->size++;
 }
 
+void free_thunder_shot_grid(void * vb){
+    struct thunder_shot * ts = (struct thunder_shot*) vb;
+
+    for(int x = 0; x<maxwidth;x++){
+        free(ts->thunder_grid[x]);
+    }
+
+    free(ts->thunder_grid);
+
+    printf("thunder shot grid freed!\n");
+}
+
+void create_thunder_shot(int x, int y, int direction, int dmg){
+
+    int i = world->size;
+    if(i >= world->max_nbr_of_objects){
+        return;
+    }
+    drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
+    /* one dot to start with */ 
+    drawable->thunder.direction = direction;
+    drawable->thunder.xstart = x;
+    drawable->thunder.ystart = y;
+    drawable->thunder.state = 5;
+    drawable->thunder.dmg = dmg;
+    drawable->thunder.draw_f = draw_thunder_shot;
+    drawable->thunder.move_f = move_thunder;
+
+    int ** thunder_grid = (int**) malloc(sizeof(int*)*maxwidth);
+    for(int i = 0; i<maxwidth;i++){
+        thunder_grid[i] = (int*) malloc(sizeof(int)*maxheight);
+    }
+
+    drawable->thunder.thunder_grid = thunder_grid;
+
+    drawable->type = thunder;
+
+    world->drawables[i] = drawable;
+    world->size++;
+
+    printf("thunder shot created\n");
+
+}
+
 /* to generate laser shots */
 void create_laser_shot(int x, int y, int direction){
     int i = world->size;
@@ -279,8 +341,6 @@ void create_laser_shot(int x, int y, int direction){
     world->drawables[i] = drawable;
     world->size++;
 }
-
-
 
 /* checks if there are collisions in the world */
 void collision_check_world(){
@@ -350,6 +410,9 @@ void draw_world(){
             case laser:
                 world->drawables[i]->laser.draw_f(&world->drawables[i]->laser);
                 break;
+            case thunder:
+                world->drawables[i]->thunder.draw_f(&world->drawables[i]->thunder);
+                break;
             default:
                 break;
         }
@@ -372,6 +435,11 @@ void draw_world(){
             break;
         case laser_shot:
             XDrawString(display, window, DefaultGC(display, s), len*4 + 80, height - 40, "Laser shot", 10);
+            break;
+        case thunder_shot:
+            XDrawString(display, window, DefaultGC(display, s), len*4 + 80, height - 40, "Thunder shot", 12);
+            break;
+        default:
             break;
     }
 
@@ -499,7 +567,18 @@ static void* event_loop(void*data)
                             shot_req.y = world->drawables[0]->dot.y;
                             shot_req.direction = 1;
                             shot_req.active = 1;
-                            break;                         
+                            break;
+                        case thunder_shot:
+                            world->drawables[0]->dot.state=1;
+                            world->drawables[0]->dot.state_count=1;
+                            shot_req.shot_type = thunder_shot;
+                            shot_req.x = world->drawables[0]->dot.x;
+                            shot_req.y = world->drawables[0]->dot.y;
+                            shot_req.direction = 10;
+                            shot_req.fire_dmg = 1;
+                            shot_req.active = 1;
+                        default:
+                            break;                   
                     }
                     break;
                 case 'e':
@@ -511,8 +590,13 @@ static void* event_loop(void*data)
                             player_fire = laser_shot;
                             break;
                         case laser_shot:
+                            player_fire = thunder_shot;
+                            break;    
+                        case thunder_shot:
                             player_fire = fire_shot;
-                            break;                         
+                            break;   
+                        default:
+                            break;                  
                     }  
             }
 
@@ -532,6 +616,10 @@ void check_requests(void){
                 break;
             case laser_shot:
                 create_laser_shot(shot_req.x,shot_req.y, shot_req.direction);
+                break;
+            case thunder_shot:
+                create_thunder_shot(shot_req.x,shot_req.y,shot_req.direction, shot_req.fire_dmg);
+            default:
                 break;
         }
         shot_req.active = 0;
@@ -675,7 +763,13 @@ int main(int argc, char **argv)
 
     rc = XAllocNamedColor(display, screen_colormap, "blue", &blue, &blue);
     if (rc == 0) {
-    fprintf(stderr, "XAllocNamedColor - failed to allocated 'red' color.\n");
+    fprintf(stderr, "XAllocNamedColor - failed to allocated 'blue' color.\n");
+    exit(1);
+    }
+
+    rc = XAllocNamedColor(display, screen_colormap, "yellow", &yellow, &yellow);
+    if (rc == 0) {
+    fprintf(stderr, "XAllocNamedColor - failed to allocated 'yellow' color.\n");
     exit(1);
     }
 
@@ -838,6 +932,74 @@ void draw_fire_shot(void * dt){
     XSetForeground(display, gc, BlackPixel(display,screen_num));
 }
 
+int thunder_mod = 12;
+
+void draw_thunder(struct thunder_shot* ts, int x, int y, int direction){
+
+    if(x >= width | x < 0 | y < 0 | y >= height) return;
+
+    for(int xx = x; xx<x+direction;xx++){
+        ts->thunder_grid[xx][y] = 1;
+        collision_grid[xx][y] = ts->dmg;
+    }
+    int r = rand()%thunder_mod;
+    switch(r){
+        case 0:
+            draw_thunder(ts,x+direction,y+2,direction);
+            draw_thunder(ts,x+direction,y-2,direction);
+            break;
+        case 1:
+            draw_thunder(ts,x+direction,y+5,direction);
+            break;
+        case 2:
+            draw_thunder(ts,x+direction,y-5,direction);
+            break;
+        case 3:
+            draw_thunder(ts,x+direction,y+7,direction);
+            break;
+        case 4:
+            draw_thunder(ts,x+direction,y-7,direction);
+            break;
+        case 5:
+            draw_thunder(ts,x+direction,y+10,direction);
+            break;
+        case 6:
+            draw_thunder(ts,x+direction,y-10,direction);
+            break; 
+        default:
+            draw_thunder(ts,x+direction,y,direction);
+    }
+
+
+}
+
+void init_thunder_grid(struct thunder_shot* ts){
+    for(int x = 0; x<maxwidth; x++){
+        for(int y = 0; y<maxheight; y++){
+            ts->thunder_grid[x][y] = 0;
+        }
+    }
+    draw_thunder(ts,ts->xstart, ts->ystart, ts->direction);
+}
+
+void draw_thunder_shot(void * vb){
+    struct thunder_shot * ts = (struct thunder_shot*) vb;
+
+    if(ts->state == 5) init_thunder_grid(ts);
+
+    XSetForeground(display, gc, yellow.pixel);
+
+    for(int x = 0; x<width; x++){
+        for(int y = 0; y<height; y++){
+            if(ts->thunder_grid[x][y]) {
+                XFillRectangle(display, window, gc, x, y, 2,2);
+            }
+        }
+    }
+
+    XSetForeground(display, gc, BlackPixel(display,screen_num));
+}
+
 void draw_laser_shot(void * dt){
 
     struct laser_shot* ls = (struct laser_shot*) dt;
@@ -895,6 +1057,10 @@ void move_world(void){
             if(world->drawables[i]->laser.move_f(&world->drawables[i]->laser))
                 erase_drawable(i);
             break;
+        case thunder:
+            if(world->drawables[i]->thunder.move_f(&world->drawables[i]->thunder))
+                erase_drawable(i);
+            break;
         }
      }
 }
@@ -919,6 +1085,25 @@ int move_shot(void * sb){
     if(st->x >= 0 && st->x <= width)
         collision_grid[st->x][st->y] = st->fire_dmg;
 
+    return 0;
+}
+
+int move_thunder(void * vb){
+    struct thunder_shot * tb = (struct thunder_shot*) vb;
+
+    if(tb->state == 0){
+
+        for(int x = 0; x<maxwidth; x++){
+            for(int y = 0; y<maxheight;y++){
+                if(tb->thunder_grid[x][y]) collision_grid[x][y] = 0;
+            }
+        }
+
+        free_thunder_shot_grid(tb);
+        return 1;
+    }
+
+    tb->state--;
     return 0;
 }
 
