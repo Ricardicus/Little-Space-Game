@@ -90,6 +90,15 @@ struct star_bulb {
     move_callback move_f;
 };
 
+struct moon_bulb {
+    int x;
+    int y;
+    int speed;
+    int side;
+    draw_callback draw_f;
+    move_callback move_f;
+};
+
 struct enemy_aircraft {
     int x;
     int y;
@@ -111,6 +120,7 @@ typedef enum draw_type_e{
     laser,
     thunder,
     star,
+    moon,
     enemy
 } draw_object_type_t;
 
@@ -120,6 +130,7 @@ typedef struct drawable_u {
     struct monster_bulb monster;
     struct shot_bulb shot;
     struct star_bulb star;
+    struct moon_bulb moon;
     struct enemy_aircraft enemy;
     struct laser_shot laser;
     struct thunder_shot thunder;
@@ -154,15 +165,20 @@ void draw_laser_shot(void*);
 void draw_thunder_shot(void*);
 void draw_enemy(void*);
 void draw_star(void*);
+void draw_moon(void*);
 void draw_aircraft(int,int);
 void draw_enemy_aircraft(int,int);
 int move_star(void*);
+int move_moon(void*);
 int move_shot(void*);
 int move_laser(void*);
 int move_thunder(void*);
 int move_dot(void*);
 int move_enemy(void*);
 void spawn_stuff(void);
+void create_star(void);
+void create_moon(void);
+void create_enemy(void);
 void create_fire_shot(int,int,int,int);
 void create_laser_shot(int,int,int);
 void create_thunder_shot(int,int,int,int);
@@ -170,7 +186,6 @@ void shot_request(void);
 int check_collision_aircraft(int,int);
 void check_requests(void);
 void erase_drawable(int id);
-void create_enemy(void);
 world_t* init_world(int);
 void initialise_world_1(void);
 void destroy_world(void);
@@ -252,6 +267,29 @@ void create_star(void){
     drawable->star.draw_f = draw_star;
     drawable->star.move_f = move_star;
     drawable->type = star;
+
+    world->drawables[i] = drawable;
+    world->size++;
+}
+
+
+/* In space there are moons, so this function creates beautiful moving moons in the background */ 
+void create_moon(void){
+
+    int i = world->size;
+    if(i >= world->max_nbr_of_objects){
+        return;
+    }
+
+    drawable_t * drawable = (drawable_t*) malloc(sizeof(drawable_t));
+
+    drawable->moon.x = width;
+    drawable->moon.y = rand()%height;
+    drawable->moon.speed = 1 + rand()%4;
+    drawable->moon.side = 3 + rand()%6;
+    drawable->moon.draw_f = draw_moon;
+    drawable->moon.move_f = move_moon;
+    drawable->type = moon;
 
     world->drawables[i] = drawable;
     world->size++;
@@ -378,6 +416,12 @@ void spawn_stuff(void){
     if(r == 14){
         create_star();
     }
+
+    r = rand()%100;
+    if(r == 14){
+        create_moon();
+    }
+
     r = rand()%enemy_spawn_rate;
     if(!r){
         create_enemy();
@@ -413,6 +457,9 @@ void draw_world(){
             case thunder:
                 world->drawables[i]->thunder.draw_f(&world->drawables[i]->thunder);
                 break;
+            case moon:
+                world->drawables[i]->moon.draw_f(&world->drawables[i]->moon);
+                break;                
             default:
                 break;
         }
@@ -1030,6 +1077,12 @@ void draw_star(void * dt){
     XDrawLine(display,window, gc, sb->x+1, sb->y-1, sb->x, sb->y-sb->side);
 }
 
+void draw_moon(void * dm){
+    struct moon_bulb * mb = (struct moon_bulb*) dm;
+    XSetForeground(display, gc, BlackPixel(display,screen_num));
+    XDrawArc(display,window,gc,mb->x,mb->y,mb->side,mb->side,0,64*360);
+}
+
 void move_world(void){
 
     for(int i = 0;i<world->size;i++){
@@ -1061,12 +1114,25 @@ void move_world(void){
             if(world->drawables[i]->thunder.move_f(&world->drawables[i]->thunder))
                 erase_drawable(i);
             break;
+        case moon:
+            if(world->drawables[i]->moon.move_f(&world->drawables[i]->moon))
+                erase_drawable(i);
+            break;
         }
      }
 }
 
 int move_star(void * sb){
     struct star_bulb * st = (struct star_bulb *) sb;
+    if(st->x <= 0){
+        return 1;
+    }
+    st->x -= st->speed;
+    return 0;
+}
+
+int move_moon(void * sb){
+    struct moon_bulb * st = (struct moon_bulb *) sb;
     if(st->x <= 0){
         return 1;
     }
