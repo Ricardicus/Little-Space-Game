@@ -220,6 +220,7 @@ int maxheight = 2000;
 int maxwidth = 2000;
 int enemy_spawn_rate_start = 400;
 int there_is_lightning = 0;
+int escaped = 0;
 
 /* used for checking collisions, more specificly its a matrix describing where dangerous stuff is */
 char collision_grid[2000][2000];
@@ -286,7 +287,7 @@ void create_moon(void){
     drawable->moon.x = width;
     drawable->moon.y = rand()%height;
     drawable->moon.speed = 1 + rand()%4;
-    drawable->moon.side = 3 + rand()%6;
+    drawable->moon.side = 1 + rand()%6;
     drawable->moon.draw_f = draw_moon;
     drawable->moon.move_f = move_moon;
     drawable->type = moon;
@@ -417,7 +418,7 @@ void spawn_stuff(void){
         create_star();
     }
 
-    r = rand()%100;
+    r = rand()%200;
     if(r == 14){
         create_moon();
     }
@@ -469,6 +470,12 @@ void draw_world(){
     len = strlen(display_msg);
 
     XDrawString(display, window, DefaultGC(display, s), width - len*8, height - 20, display_msg, len);
+
+    sprintf(display_msg,"Enemys Escaped: %d", escaped);
+    len = strlen(display_msg);
+
+    XDrawString(display, window, DefaultGC(display, s), width - len*8, height - 40, display_msg, len);
+
 
     memset(display_msg,'\0',256);    
 
@@ -780,8 +787,8 @@ int main(int argc, char **argv)
     s = DefaultScreen(display);
  
     /* create window */
-    width = 500;
-    height = 500;
+    width = 300;
+    height = 1000;
 
     window = XCreateSimpleWindow(display, RootWindow(display, s), 10, 10, height, width, 1,
                            BlackPixel(display, s), WhitePixel(display, s));
@@ -1247,6 +1254,11 @@ int move_enemy(void * eb){
                 default:
                     break;
             }
+            ea->x -= 1;
+            if(ea->x<=0){
+                escaped++;
+                return 1;
+            }
             break;
         case 3:
             if(ea->substate == 10){
@@ -1269,10 +1281,10 @@ int move_dot(void * sb){
         case still:
             break;
         case up:
-            dot->y = (height+dot->y - 1)%height;
+            dot->y = (height+dot->y - 2)%height;
             break;
         case down:
-            dot->y = (dot->y + 1)%height; 
+            dot->y = (dot->y + 2)%height; 
             break;
         case left:
             dot->x = (width+dot->x - 1)%width; 
