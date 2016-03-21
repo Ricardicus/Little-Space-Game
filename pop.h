@@ -160,6 +160,13 @@ typedef struct shot_request_s {
     int y;
 } shot_request_t;
 
+typedef struct game_session_s {
+    int level;
+    int sublevel;
+    int count;
+    int active;
+} game_session_t;
+
 /* Function declarations */
 void draw_dot_bulb(void*);
 void erase_dot_bulb(void*);
@@ -195,6 +202,7 @@ world_t* init_world(int);
 void initialise_world_1(void);
 void destroy_world(void);
 void free_thunder_shot_grid(void*);
+void update_level(void);
 static void* event_loop(void*);
 static void* timer_loop(void*);
 void close_x(void);

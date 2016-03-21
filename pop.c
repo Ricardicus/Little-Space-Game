@@ -41,8 +41,10 @@ int is_initialised=0;
 int maxheight = 2000;
 int maxwidth = 2000;
 int enemy_spawn_rate_start = 400;
+int basic_enemy_shoot_freq = 40;
 int there_is_lightning = 0;
 int escaped = 0;
+game_session_t levels;
 
 /* used for checking collisions, more specificly its a matrix describing where dangerous stuff is */
 char collision_grid[2000][2000];
@@ -235,19 +237,81 @@ void spawn_stuff(void){
         enemy_spawn_rate = 20;
     }
 
+
+/* background generation */
     int r = rand()%20;
     if(r == 14){
         create_star();
     }
-
     r = rand()%200;
     if(r == 14){
         create_moon();
     }
 
-    r = rand()%enemy_spawn_rate;
-    if(!r){
-        create_enemy();
+/* the number of enemys generated depends on the level */
+
+    char * msg;
+
+    switch(levels.level){
+        case 1:
+            if(!levels.active && levels.count <= 100){
+                msg = "Get ready for the first wave...";
+                XDrawString(display, window, DefaultGC(display, s), width/2 - 40, height/2, msg,strlen(msg));
+                levels.count++;                
+            } else {
+                if(levels.count > 100){
+                    levels.count = 0;
+                    levels.active = 1;
+                    for(int i = 0; i<20;i++){
+                        create_enemy();
+                    }
+                    break;
+                }
+                if(levels.active){
+                    r = rand()%enemy_spawn_rate;
+                    if(!r){
+                        create_enemy();
+                    }
+                }
+            }
+            if(killed >= 20){
+                levels.level = 2;
+                levels.active = 0;
+            }
+            break;
+        case 2: 
+            if(!levels.active && levels.count <= 100){
+                msg = "You made it!! New gun: Laser gun";
+                XDrawString(display, window, DefaultGC(display, s), width/2 - 40, height/2, msg,strlen(msg));
+                levels.count++;                
+            } else {
+                if(levels.count > 100){
+                    levels.count = 0;
+                    levels.active = 1;
+                    for(int i = 0; i<40;i++){
+                        create_enemy();
+                    }
+                    break;
+                }
+                if(levels.active){
+                    r = rand()%enemy_spawn_rate;
+                    if(!r){
+                        create_enemy();
+                    }
+                }
+            }
+            if(killed >= 40){
+                levels.level = 3;
+                levels.active = 0;
+            }
+            break;
+        default:
+            r = rand()%enemy_spawn_rate;
+            if(!r){
+                create_enemy();
+            }
+            break;
+
     }
 }
 
@@ -255,39 +319,7 @@ void spawn_stuff(void){
 char display_msg[256];
 int len;
 
-/* structuraly calling functions to draw the content of each world-element onto the XWindow */
-void draw_world(){
-    for(int i = 0;i<world->size;i++){
-        switch(world->drawables[i]->type){
-            case monster:
-                world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
-                break;
-            case dot:
-                world->drawables[i]->dot.draw_f(&world->drawables[i]->dot);
-                break;
-            case shot:
-                world->drawables[i]->shot.draw_f(&world->drawables[i]->shot);
-                break;
-            case star:
-                world->drawables[i]->star.draw_f(&world->drawables[i]->star);
-                break;
-            case enemy:
-                world->drawables[i]->enemy.draw_f(&world->drawables[i]->enemy);
-                break;
-            case laser:
-                world->drawables[i]->laser.draw_f(&world->drawables[i]->laser);
-                break;
-            case thunder:
-                world->drawables[i]->thunder.draw_f(&world->drawables[i]->thunder);
-                break;
-            case moon:
-                world->drawables[i]->moon.draw_f(&world->drawables[i]->moon);
-                break;                
-            default:
-                break;
-        }
-    }
-
+void draw_standard_txt(){
     sprintf(display_msg,"Units killed: %d", killed);
     len = strlen(display_msg);
 
@@ -331,6 +363,40 @@ void draw_world(){
     }
 
     XFlush(display);
+}
+
+/* structurally calling functions to draw the content of each world-element onto the XWindow */
+void draw_world(){
+    for(int i = 0;i<world->size;i++){
+        switch(world->drawables[i]->type){
+            case monster:
+                world->drawables[i]->monster.draw_f(&world->drawables[i]->monster);
+                break;
+            case dot:
+                world->drawables[i]->dot.draw_f(&world->drawables[i]->dot);
+                break;
+            case shot:
+                world->drawables[i]->shot.draw_f(&world->drawables[i]->shot);
+                break;
+            case star:
+                world->drawables[i]->star.draw_f(&world->drawables[i]->star);
+                break;
+            case enemy:
+                world->drawables[i]->enemy.draw_f(&world->drawables[i]->enemy);
+                break;
+            case laser:
+                world->drawables[i]->laser.draw_f(&world->drawables[i]->laser);
+                break;
+            case thunder:
+                world->drawables[i]->thunder.draw_f(&world->drawables[i]->thunder);
+                break;
+            case moon:
+                world->drawables[i]->moon.draw_f(&world->drawables[i]->moon);
+                break;                
+            default:
+                break;
+        }
+    }
 }
 
 /* A thread will run this function and another function, that is passed in as function parameter 'tf', will be called 
@@ -461,19 +527,35 @@ static void* event_loop(void*data)
                     create_enemy();
                     break;
                 case 'x':
-                    switch(player_fire){
-                        case fire_shot:
-                            player_fire = laser_shot;
+                    switch(levels.level){
+                        case 1:
                             break;
-                        case laser_shot:
-                            player_fire = thunder_shot;
-                            break;    
-                        case thunder_shot:
-                            player_fire = fire_shot;
-                            break;   
-                        default:
-                            break;                  
-                    }  
+                        case 2:
+                        switch(player_fire){
+                            case fire_shot:
+                                player_fire = laser_shot;
+                                break;
+                            case laser_shot:
+                                player_fire = fire_shot;
+                                break;    
+                            default:
+                                break;                  
+                        }  
+                        break;
+                    }
+                    // switch(player_fire){
+                    //     case fire_shot:
+                    //         player_fire = laser_shot;
+                    //         break;
+                    //     case laser_shot:
+                    //         player_fire = thunder_shot;
+                    //         break;    
+                    //     case thunder_shot:
+                    //         player_fire = fire_shot;
+                    //         break;   
+                    //     default:
+                    //         break;                  
+                    // }  
             }
 
         } 
@@ -509,9 +591,11 @@ void world_refresh(){
     check_requests();
     spawn_stuff();
     draw_world();
+    draw_standard_txt();
     collision_check_world();
     move_world();
     collision_check_world();
+    update_level();
 }
 
 /* allocated memory is being freed */
@@ -592,6 +676,11 @@ void initialise_world_1(void){
 
     world->drawables[0] = drawable;
     world->size = 1;
+
+    levels.level = 1;
+    levels.sublevel = 0;
+    levels.active = 0;
+    levels.count = 0;
 }
 
 /* main entry, calls initialisation functions for the game logic and the and X window system */
@@ -1056,7 +1145,7 @@ int move_enemy(void * eb){
             } else {
                 if(!(enemy_move_count % 10))
                     ea->direction = rand()%3;
-                int shoot = rand()%40;
+                int shoot = rand() % basic_enemy_shoot_freq;
                 if(!shoot){
                     ea->state=2;
                     ea->fire_count=1;
@@ -1126,6 +1215,10 @@ int move_dot(void * sb){
         lives--;
     }
     return 0;
+}
+
+void update_level(){
+
 }
 
 /* returns system resources to the system */
