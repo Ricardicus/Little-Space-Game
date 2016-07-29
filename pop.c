@@ -41,7 +41,7 @@ int is_initialised=0;
 int maxheight = 2000;
 int maxwidth = 2000;
 int enemy_spawn_rate_start = 400;
-int basic_enemy_shoot_freq = 40;
+int basic_enemy_shoot_freq = 90;
 int there_is_lightning = 0;
 int escaped = 0;
 game_session_t levels;
@@ -180,8 +180,6 @@ void create_thunder_shot(int x, int y, int direction, int dmg){
     world->drawables[i] = drawable;
     world->size++;
 
-    printf("thunder shot created\n");
-
 }
 
 /* to generate laser shots */
@@ -284,8 +282,12 @@ void spawn_stuff(void){
                 msg = "You made it!! New gun: Laser gun";
                 XDrawString(display, window, DefaultGC(display, s), width/2 - 40, height/2, msg,strlen(msg));
                 levels.count++;                
+            } else if(!levels.active && levels.count <= 200){
+                msg = "Get ready for the second wave";
+                XDrawString(display, window, DefaultGC(display, s), width/2 - 40, height/2, msg,strlen(msg));
+                levels.count++;                 
             } else {
-                if(levels.count > 100){
+                if(levels.count > 200){
                     levels.count = 0;
                     levels.active = 1;
                     for(int i = 0; i<40;i++){
@@ -306,6 +308,7 @@ void spawn_stuff(void){
             }
             break;
         default:
+            levels.level = 3;
             r = rand()%enemy_spawn_rate;
             if(!r){
                 create_enemy();
@@ -542,20 +545,22 @@ static void* event_loop(void*data)
                                 break;                  
                         }  
                         break;
+                        case 3:
+                            switch(player_fire){
+                                case fire_shot:
+                                    player_fire = laser_shot;
+                                    break;
+                                case laser_shot:
+                                    player_fire = thunder_shot;
+                                    break;    
+                                case thunder_shot:
+                                    player_fire = fire_shot;
+                                    break;   
+                        default:
+                             break;                  
+                    }  
+                        break; 
                     }
-                    // switch(player_fire){
-                    //     case fire_shot:
-                    //         player_fire = laser_shot;
-                    //         break;
-                    //     case laser_shot:
-                    //         player_fire = thunder_shot;
-                    //         break;    
-                    //     case thunder_shot:
-                    //         player_fire = fire_shot;
-                    //         break;   
-                    //     default:
-                    //         break;                  
-                    // }  
             }
 
         } 
