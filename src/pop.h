@@ -209,7 +209,6 @@ void close_x(void);
 void move_world(void);
 void world_refresh(void);
 
-
 #ifdef __cpluspluc
 }
 #endif	

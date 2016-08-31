@@ -235,7 +235,6 @@ void spawn_stuff(void){
         enemy_spawn_rate = 20;
     }
 
-
 /* background generation */
     int r = rand()%20;
     if(r == 14){
