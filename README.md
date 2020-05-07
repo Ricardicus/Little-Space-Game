@@ -8,6 +8,8 @@ Download XQuartz here: http://www.xquartz.org/
 
 # Gameplay
 
-One can play with keys on the keyboard or click with the mouse.
+One can play with keys on the keyboard
 
-<img src="https://raw.githubusercontent.com/Ricardicus/Little-Space-Game/master/snapsho/S1.png"></img>
+<img src="https://raw.githubusercontent.com/Ricardicus/Little-Space-Game/master/snapshot/SS1.png"></img>
+
+<img src="https://raw.githubusercontent.com/Ricardicus/Little-Space-Game/master/snapshot/SS2.png"></img>
