@@ -8,8 +8,13 @@ Download XQuartz here: http://www.xquartz.org/
 
 # Gameplay
 
-One can play with keys on the keyboard
+One can play with keys on the keyboard.
+Enemies spawn like this:
 
 <img src="https://raw.githubusercontent.com/Ricardicus/Little-Space-Game/master/snapshot/SS1.png"></img>
 
+Then they spawn more randomly like this:
+
 <img src="https://raw.githubusercontent.com/Ricardicus/Little-Space-Game/master/snapshot/SS2.png"></img>
+
+You unlock new weapons as you survive and time passes by.
