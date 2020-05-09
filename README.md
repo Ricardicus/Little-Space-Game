@@ -25,6 +25,12 @@ make
 
 Create an issue, and I will give it a go!
 
+# Start
+
+```
+./pop
+```
+
 # Gameplay
 
 One can play with keys on the keyboard.
