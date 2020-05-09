@@ -6,6 +6,22 @@ If you are on a mac computer, please download XQuartz. Then you compile the prog
 I have tried to make this work on Ubuntu but I ran into some problems. For sure though, this runs on any Mac with XQuartz installed.
 Download XQuartz here: http://www.xquartz.org/
 
+# Build with meson
+
+This requires you to have python3 installed
+
+```
+# Setup environment
+python3 -m venv venv
+source venv/bin/activate
+# Install meson and ninja
+pip install -r requirements.txt
+# Build
+meson builddir
+cd builddir
+ninja
+```
+
 # Build on OSX 
 
 ```
@@ -43,3 +59,5 @@ Then they spawn more randomly like this:
 <img src="https://raw.githubusercontent.com/Ricardicus/Little-Space-Game/master/snapshot/SS2.png"></img>
 
 You unlock new weapons as you survive and time passes by.
+
+# Let me know if something isn't working
