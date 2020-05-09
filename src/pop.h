@@ -7,12 +7,9 @@ extern "C" {
 #endif 
 
 #include <X11/Xlib.h>
-#include <X11/Shell.h>
 #include <X11/Xfuncs.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
-#include <X11/Intrinsic.h>
-#include <X11/StringDefs.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>

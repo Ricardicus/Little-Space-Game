@@ -4,12 +4,9 @@
   */
  
 #include <X11/Xlib.h>
-#include <X11/Shell.h>
 #include <X11/Xfuncs.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
-#include <X11/Intrinsic.h>
-#include <X11/StringDefs.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -27,7 +24,6 @@ XEvent event;
 int s;
 int screen_num;
 Colormap colormap;
-Arg args[16];
 int width;
 int height;
 GC gc;
@@ -45,6 +41,10 @@ int basic_enemy_shoot_freq = 90;
 int there_is_lightning = 0;
 int escaped = 0;
 game_session_t levels;
+
+/* Shooting intervals */
+unsigned long shootWait = 10;
+unsigned long shootCooldown = 0;
 
 /* used for checking collisions, more specificly its a matrix describing where dangerous stuff is */
 char collision_grid[2000][2000];
@@ -252,6 +252,8 @@ void spawn_stuff(void){
     switch(levels.level){
         case 1:
             if(!levels.active && levels.count <= 100){
+                msg = "Controls: WASD, shoot with 'f' (fire), switch funs with 'd', quit with 'q'.";
+                XDrawString(display, window, DefaultGC(display, s), width/2 - 200, height/2+60, msg,strlen(msg));
                 msg = "Get ready for the first wave...";
                 XDrawString(display, window, DefaultGC(display, s), width/2 - 40, height/2, msg,strlen(msg));
                 levels.count++;                
@@ -492,6 +494,14 @@ static void* event_loop(void*data)
                     world->drawables[0]->dot.direction = down;
                     break;
                 case 'f':
+                    if ( shootCooldown > 0 ) {
+                      /* Gun not ready yet */
+                      break;
+                    }
+
+                    /* Start shoot cooldown */
+                    shootCooldown = shootWait;
+
                     switch(player_fire){
                         case fire_shot:
                             world->drawables[0]->dot.state=1;
@@ -562,7 +572,8 @@ static void* event_loop(void*data)
                     }
             }
 
-        } 
+        }
+
     }
     pthread_exit(NULL);
     return 0;
@@ -588,6 +599,12 @@ void check_requests(void){
     }
 }
 
+void update_cooldowns() {
+    /* Shooting cooldown */
+    if ( shootCooldown > 0 )
+      --shootCooldown;
+}
+
 /* Called at regular intervals in the game-loop, it is the function passed as input argument to 
 * the 'timer_loop' */ 
 void world_refresh(){
@@ -597,6 +614,7 @@ void world_refresh(){
     draw_world();
     draw_standard_txt();
     collision_check_world();
+    update_cooldowns();
     move_world();
     collision_check_world();
     update_level();

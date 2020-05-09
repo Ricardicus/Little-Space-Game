@@ -1,5 +1,5 @@
 CC=gcc
-FLAGS=-I/usr/X11/include -L/usr/X11/lib -lX11
+LIBS=X11 pthread
 
 all: src/pop.h
-	$(CC) $(FLAGS) src/pop.c -o pop
+	$(CC) $(FLAGS) src/pop.c -o pop $(addprefix -l,$(LIBS))
