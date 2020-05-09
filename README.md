@@ -8,18 +8,22 @@ Download XQuartz here: http://www.xquartz.org/
 
 # Build on OSX 
 
-´´´
+```
 # Explictly set some variables, to point
 # to the X11 installation
 make X11INC=/usr/X11/include X11LIB=/usr/X11/lib
-´´´
+```
 
 # Build on Ubutnu
 
-´´´
+```
 # No need to set any variables
 make
-´´´
+```
+
+# Build on Windows
+
+Create an issue, and I will give it a go!
 
 # Gameplay
 
