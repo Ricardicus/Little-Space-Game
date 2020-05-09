@@ -6,6 +6,21 @@ If you are on a mac computer, please download XQuartz. Then you compile the prog
 I have tried to make this work on Ubuntu but I ran into some problems. For sure though, this runs on any Mac with XQuartz installed.
 Download XQuartz here: http://www.xquartz.org/
 
+# Build on OSX 
+
+´´´
+# Explictly set some variables, to point
+# to the X11 installation
+make X11INC=/usr/X11/include X11LIB=/usr/X11/lib
+´´´
+
+# Build on Ubutnu
+
+´´´
+# No need to set any variables
+make
+´´´
+
 # Gameplay
 
 One can play with keys on the keyboard.
