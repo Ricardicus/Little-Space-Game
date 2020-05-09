@@ -22,7 +22,7 @@ cd builddir
 ninja
 ```
 
-# Build on OSX 
+# Build using make on OSX 
 
 ```
 # Explictly set some variables, to point
@@ -30,7 +30,7 @@ ninja
 make X11INC=/usr/X11/include X11LIB=/usr/X11/lib
 ```
 
-# Build on Ubutnu
+# Build using make on Ubuntu
 
 ```
 # No need to set any variables
